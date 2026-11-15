@@ -1,0 +1,32 @@
+{
+  "name": "fleet-worker",
+  "version": "0.1.0",
+  "description": "Harness-agnostic Jira-driven worker daemon for the decentralized AI development fleet.",
+  "type": "module",
+  "bin": {
+    "fleet-worker": "bin/fleet-worker.js",
+    "fleet-mcp": "bin/fleet-mcp.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "bin",
+    "src",
+    "adapters"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node bin/fleet-worker.js",
+    "smoke:cmdc": "node scripts/cmdc-smoke.mjs"
+  },
+  "keywords": [
+    "jira",
+    "fleet",
+    "codegeist",
+    "copilot",
+    "cmdc",
+    "command-code"
+  ],
+  "license": "MIT"
+}
