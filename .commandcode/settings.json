@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(node \"C:\\Users\\PakWai\\AppData\\Local\\Temp\\commandcode\\C--Users-PakWai-Documents-JsWorkspace-atlassian-decentralize-workload\\5774394a-22e2-4d4d-bfbf-435a725dc34a\\scratchpad\\smoke.js\")",
+      "Shell(node C:\\Users\\PakWai\\AppData\\Local\\Temp\\commandcode\\C--Users-PakWai-Documents-JsWorkspace-atlassian-decentralize-workload\\5774394a-22e2-4d4d-bfbf-435a725dc34a\\scratchpad\\dfd-check.js)",
+      "Shell(node C:\\Users\\PakWai\\AppData\\Local\\Temp\\commandcode\\C--Users-PakWai-Documents-JsWorkspace-atlassian-decentralize-workload\\5774394a-22e2-4d4d-bfbf-435a725dc34a\\scratchpad\\dfd-run.js)",
+      "Shell(node \"C:\\Users\\PakWai\\AppData\\Local\\Temp\\commandcode\\C--Users-PakWai-Documents-JsWorkspace-atlassian-decentralize-workload\\5774394a-22e2-4d4d-bfbf-435a725dc34a\\scratchpad\\dfd-run.js\")"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

@@ -1,0 +1,899 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — Codegeist fleet demo UX</title>
+<style>
+  :root{
+    --blue:#0C66E4; --blue-ink:#09326C; --blue-bg:#CCE0FF;
+    --amber:#974F0C; --amber-bg:#FFF7D6;
+    --purple:#5E4DB2; --purple-bg:#E9E7FF;
+    --green:#216E4E; --green-bg:#DCFFF1;
+    --red:#AE2E24; --red-bg:#FFEDEB;
+    --teal:#206A83; --teal-bg:#C6EDFB;
+    --gray:#44546F; --gray-bg:#DCDFE4;
+    --text:#172B4D; --subtle:#626F86; --faint:#8590A2;
+    --border:#DFE1E6; --border-strong:#B3B9C4;
+    --surface:#FFFFFF; --bg:#F7F8F9; --raised:#FFFFFF; --sunken:#F1F2F4;
+    --radius:8px; --radius-sm:6px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--font);color:var(--text);background:var(--bg);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;font-size:inherit;cursor:pointer}
+  .mono{font-family:var(--mono)}
+  .muted{color:var(--subtle)}
+  .faint{color:var(--faint)}
+  .small{font-size:12px}
+  .spacer{flex:1}
+
+  /* ---------- prototype chrome ---------- */
+  .topbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:10px 18px;background:#0B1220;color:#E6EDF3;border-bottom:1px solid #1F2937}
+  .badge{font-size:11px;font-weight:700;letter-spacing:.08em;background:#F87171;color:#3B0A0A;padding:3px 8px;border-radius:999px}
+  .topbar h1{font-size:14px;margin:0;font-weight:600}
+  .topbar .sub{font-size:12px;color:#9FB0C3;max-width:760px}
+  .tbtools{display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap}
+  .seg{display:inline-flex;background:#1F2937;border-radius:8px;padding:2px;gap:2px}
+  .seg button{background:transparent;color:#C7D2DE;border:0;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600}
+  .seg button.on{background:#3B82F6;color:#fff}
+  .toggle{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:#C7D2DE;user-select:none}
+  .toggle input{accent-color:#3B82F6}
+
+  /* ---------- layout ---------- */
+  .shell{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:calc(100vh - 52px)}
+  .shell.with-state{grid-template-columns:248px minmax(0,1fr) 320px}
+  .rail{background:var(--raised);border-right:1px solid var(--border);padding:14px 10px 110px;overflow:auto;position:sticky;top:52px;height:calc(100vh - 52px)}
+  .rail h2{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:14px 8px 6px}
+  .rail button{display:flex;width:100%;gap:9px;align-items:flex-start;text-align:left;background:transparent;border:0;border-radius:6px;padding:7px 9px;color:var(--text)}
+  .rail button:hover{background:var(--sunken)}
+  .rail button.on{background:var(--blue-bg);color:var(--blue-ink)}
+  .rail .num{font-size:11px;font-family:var(--mono);color:var(--faint);min-width:16px;padding-top:2px}
+  .rail button.on .num{color:var(--blue-ink)}
+  .rail .rl-t{font-size:12.5px;font-weight:500;line-height:1.35}
+  .stage{padding:22px;overflow:auto}
+
+  /* ---------- host frame ---------- */
+  .hostframe{background:var(--raised);border:1px solid var(--border);border-radius:12px;overflow:hidden;
+    box-shadow:0 1px 2px rgba(9,30,66,.06),0 8px 26px rgba(9,30,66,.07);max-width:1240px;margin:0 auto}
+  .hostbar{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--sunken);border-bottom:1px solid var(--border)}
+  .dot{width:11px;height:11px;border-radius:50%}
+  .dot.r{background:#FF5F57}.dot.y{background:#FEBC2E}.dot.g{background:#28C840}
+  .url{font-size:12px;color:var(--subtle);background:#fff;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-family:var(--mono);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hostbody{padding:20px 24px 26px}
+  .note{margin:0 auto 16px;max-width:1240px;display:flex;gap:10px;align-items:flex-start;
+    background:#FFFBEB;border:1px solid #FDE68A;color:#713F12;border-radius:8px;padding:10px 14px;font-size:13px}
+  .note b{font-weight:700}
+
+  /* ---------- lozenges ---------- */
+  .loz{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;letter-spacing:.02em;
+    padding:2px 7px;border-radius:4px;text-transform:uppercase;white-space:nowrap}
+  .loz-gray{background:var(--gray-bg);color:var(--gray)}
+  .loz-teal{background:var(--teal-bg);color:var(--teal)}
+  .loz-blue{background:var(--blue-bg);color:var(--blue-ink)}
+  .loz-amber{background:var(--amber-bg);color:var(--amber)}
+  .loz-purple{background:var(--purple-bg);color:var(--purple)}
+  .loz-green{background:var(--green-bg);color:var(--green)}
+  .loz-red{background:var(--red-bg);color:var(--red)}
+
+  .chip{display:inline-flex;align-items:center;gap:4px;background:var(--sunken);border:1px solid var(--border);
+    color:var(--subtle);font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px}
+
+  /* ---------- buttons ---------- */
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;border-radius:var(--radius-sm);
+    padding:7px 14px;font-weight:600;font-size:13px;background:var(--sunken);color:var(--text)}
+  .btn.primary{background:var(--blue);color:#fff}
+  .btn.danger{background:#fff;border-color:var(--border-strong);color:var(--red)}
+  .btn.ghost{background:#fff;border-color:var(--border-strong);color:var(--text)}
+  .btn.small{padding:4px 10px;font-size:12px}
+  .btn:disabled{opacity:.55;cursor:default}
+
+  /* ---------- board ---------- */
+  .board-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .board-head h3{margin:0;font-size:16px}
+  .board{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;align-items:flex-start}
+  .col{min-width:236px;flex:0 0 236px;background:var(--sunken);border-radius:10px;padding:8px}
+  .col-h{display:flex;align-items:center;gap:8px;padding:4px 6px 10px}
+  .col-h .ct{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--subtle)}
+  .col-h .cc{font-size:11px;color:var(--faint);font-family:var(--mono)}
+  .card{background:var(--raised);border-radius:8px;padding:10px 11px;margin-bottom:8px;
+    box-shadow:0 1px 2px rgba(9,30,66,.08);cursor:default}
+  .card:hover{background:#FAFBFC;box-shadow:0 2px 6px rgba(9,30,66,.13)}
+  .card.hi{outline:2px solid var(--blue);outline-offset:0}
+  .card .k{font-size:11px;font-weight:700;color:var(--blue);font-family:var(--mono)}
+  .card .s{font-size:13px;color:var(--text);margin:3px 0 8px;line-height:1.35}
+  .card .foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .card.failed{box-shadow:0 2px 6px rgba(174,46,36,.18)}
+  .wchip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--subtle)}
+  .wavatar{width:16px;height:16px;border-radius:50%;background:linear-gradient(135deg,#6554C0,#0C66E4);color:#fff;
+    font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+  .lease{color:var(--amber);font-weight:700;font-size:11px;font-family:var(--mono)}
+  .label{background:#E9E7FF;color:#5E4DB2;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:lowercase}
+
+  /* ---------- issue ---------- */
+  .crumb{font-size:12px;color:var(--subtle);margin-bottom:10px}
+  .crumb b{color:var(--blue);font-weight:600}
+  .issue-h{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+  .issue-h .ik{font-size:12px;font-weight:700;color:var(--blue);font-family:var(--mono)}
+  .issue-title{font-size:22px;font-weight:600;margin:2px 0 14px;line-height:1.25}
+  .issue-actions{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tabs{display:flex;gap:20px;border-bottom:1px solid var(--border);margin-bottom:18px}
+  .tabs span{font-size:13px;font-weight:600;color:var(--subtle);padding:8px 2px;border-bottom:2px solid transparent}
+  .tabs span.on{color:var(--blue);border-bottom-color:var(--blue)}
+  .grid2{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:20px;align-items:start}
+  @media(max-width:1050px){.grid2{grid-template-columns:1fr}}
+  .desc-card{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .desc-card h4{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+  .desc-card p{margin:0 0 16px}
+  .ac{list-style:none;margin:0;padding:0}
+  .ac li{display:flex;gap:9px;margin-bottom:8px}
+  .ac .bx{width:16px;height:16px;border-radius:3px;border:1.5px solid var(--border-strong);flex:0 0 16px;margin-top:2px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff}
+  .ac .bx.done{background:var(--green);border-color:var(--green)}
+  .sidecard{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px}
+  .sidecard h5{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+  .kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:13px;border-bottom:1px dashed var(--border)}
+  .kv:last-child{border-bottom:0}
+  .kv .kk{color:var(--subtle)}
+  .kv .vv{font-weight:600;text-align:right}
+
+  /* ---------- fleet panel ---------- */
+  .panel{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px}
+  .panel-h{display:flex;align-items:center;gap:9px;padding:11px 15px;border-bottom:1px solid var(--border);background:#FAFBFC}
+  .panel-h h4{margin:0;font-size:13px;font-weight:700}
+  .pdot{width:9px;height:9px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 3px var(--blue-bg)}
+  .panel-b{padding:15px}
+  .fgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 20px;margin-bottom:14px}
+  @media(max-width:900px){.fgrid{grid-template-columns:repeat(2,1fr)}}
+  .fk{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);margin-bottom:3px}
+  .fv{font-size:13px;font-weight:600}
+  .fv a{color:var(--blue);text-decoration:none;font-weight:600}
+  .fv a:hover{text-decoration:underline}
+  .logwrap{border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:14px}
+  .logh{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--subtle);background:var(--sunken);padding:6px 12px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center}
+  .log{margin:0;padding:12px 14px;background:#0B1220;color:#C9D6E3;font-family:var(--mono);font-size:12px;line-height:1.75;white-space:pre-wrap;max-height:230px;overflow:auto}
+  .log .ts{color:#6B7A8D}
+  .log .ok{color:#5BE49B}
+  .log .warn{color:#F5C451}
+  .log .dim{color:#7C8CA1}
+  .factions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .fnote{font-size:12px;color:var(--subtle)}
+
+  /* variant B: strip + drawer */
+  .strip{display:flex;align-items:center;gap:11px;padding:10px 15px;background:#F4F8FF;border-bottom:1px solid #CCE0FF}
+  .strip b{font-size:13px}
+  .drawer{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px;padding:15px}
+  @media(max-width:900px){.drawer{grid-template-columns:1fr}}
+  .drawer .log{margin:0}
+
+  /* variant C: ops console */
+  .console{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr)}
+  @media(max-width:900px){.console{grid-template-columns:1fr}}
+  .console .c-left{padding:15px;border-right:1px solid var(--border)}
+  .console .c-right{background:#0B1220}
+  .console .c-right .log{max-height:none;background:transparent}
+  .ftable{width:100%;border-collapse:collapse;margin-bottom:14px}
+  .ftable td{padding:6px 0;border-bottom:1px dashed var(--border);font-size:13px;vertical-align:top}
+  .ftable td:first-child{color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.04em;width:38%}
+
+  /* ---------- chat ---------- */
+  .chat{display:flex;flex-direction:column;gap:16px;max-width:760px}
+  .msg .who{font-size:12px;font-weight:700;color:var(--subtle);margin-bottom:6px;display:flex;align-items:center;gap:8px}
+  .msg .bubble{border:1px solid var(--border);border-radius:10px;padding:14px 16px;background:var(--raised)}
+  .msg.user .bubble{background:#F4F8FF;border-color:#CCE0FF}
+  .quote{margin:8px 0 0;padding:9px 12px;border-left:3px solid var(--border-strong);background:var(--sunken);
+    font-family:var(--mono);font-size:12.5px;color:var(--subtle);border-radius:0 6px 6px 0;white-space:pre-wrap}
+  .spec{border:1px solid var(--border);border-radius:var(--radius);margin:12px 0;overflow:hidden}
+  .spec-h{padding:9px 14px;background:var(--sunken);border-bottom:1px solid var(--border);font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px}
+  .spec-b{padding:14px}
+  .spec-b .field{margin-bottom:14px}
+  .spec-b .field:last-child{margin-bottom:0}
+  .spec-b .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);margin-bottom:4px}
+  .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)}
+  .chip-done{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--green);background:var(--green-bg);border-radius:6px;padding:5px 10px}
+  .chip-act{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--blue-ink);background:#fff;border:1px solid var(--border-strong);border-radius:6px;padding:4px 10px}
+
+  /* ---------- terminal ---------- */
+  .term{background:#0B1220;border-radius:0;padding:18px 20px;font-family:var(--mono);font-size:12.5px;line-height:1.85;
+    color:#C9D6E3;min-height:420px;white-space:pre-wrap;overflow:auto}
+  .term .p{color:#5BE49B}
+  .term .c{color:#79C0FF}
+  .term .d{color:#7C8CA1}
+  .term .y{color:#F5C451}
+  .term .r{color:#FF9C8F}
+  .term .w{color:#E6EDF3}
+  .caret{display:inline-block;width:8px;height:15px;background:#C9D6E3;vertical-align:-2px;animation:blink 1.1s steps(1) infinite}
+  @keyframes blink{50%{opacity:0}}
+
+  /* ---------- PR ---------- */
+  .pr-h{display:flex;align-items:flex-start;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--border);margin-bottom:16px}
+  .pr-h h3{margin:0 0 6px;font-size:19px;font-weight:600}
+  .pr-h .k{color:var(--blue);font-family:var(--mono);font-weight:700}
+  .pr-actions{display:flex;gap:8px;margin-left:auto}
+  .branches{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--subtle);margin-top:6px}
+  .branch-pill{background:var(--sunken);border:1px solid var(--border);border-radius:5px;padding:2px 8px;color:var(--text)}
+  .checklist{list-style:none;margin:0;padding:0}
+  .checklist li{display:flex;gap:8px;margin-bottom:6px;font-size:13px}
+  .checklist .tick{color:var(--green);font-weight:700}
+  .pr-body p{margin:0 0 12px}
+  .pr-body h5{margin:16px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+  .banner{display:flex;gap:10px;align-items:center;background:var(--green-bg);color:var(--green);border:1px solid #B7E8CE;
+    border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;margin-bottom:16px}
+  .comment{display:flex;gap:11px;padding:13px 0;border-top:1px solid var(--border)}
+  .comment .cavatar{width:26px;height:26px;border-radius:50%;flex:0 0 26px;background:linear-gradient(135deg,#6554C0,#0C66E4);color:#fff;
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
+  .comment .cavatar.sys{background:#DFE1E6;color:var(--subtle)}
+  .comment .cbody{font-size:13px}
+  .comment .cmeta{font-weight:700;margin-bottom:2px}
+
+  /* ---------- state pane ---------- */
+  .statepane{background:var(--raised);border-left:1px solid var(--border);padding:16px;position:sticky;top:52px;height:calc(100vh - 52px);overflow:auto}
+  .statepane h2{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--faint);margin:0 0 12px}
+  .statepane .row{padding:7px 0;border-bottom:1px dashed var(--border)}
+  .statepane .rk{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--faint);margin-bottom:2px}
+  .statepane .rv{font-size:12.5px;font-family:var(--mono);word-break:break-word}
+  .statepane .rv.null{color:var(--faint);font-style:italic}
+
+  /* ---------- fleet view ---------- */
+  .fv-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+  .fv-mode{display:inline-flex;background:var(--sunken);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px}
+  .fv-mode button{background:transparent;border:0;padding:5px 11px;border-radius:6px;font-size:12px;font-weight:600;color:var(--subtle)}
+  .fv-mode button.on{background:#fff;color:var(--text);box-shadow:0 1px 2px rgba(9,30,66,.12)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px}
+  .tile{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px}
+  .tile .tv{font-size:24px;font-weight:700;line-height:1.1}
+  .tile .tl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint);margin-top:3px}
+  .tile.warn .tv{color:var(--amber)}
+  .tile.bad .tv{color:var(--red)}
+  .tile.good .tv{color:var(--green)}
+  .wrow{display:flex;align-items:center;gap:12px;padding:11px 4px;border-bottom:1px solid var(--border)}
+  .wrow:last-child{border-bottom:0}
+  .wrow .wid{display:flex;align-items:center;gap:8px;font-weight:600;min-width:128px}
+  .wrow .wt{font-family:var(--mono);font-size:12px;color:var(--blue);min-width:70px}
+  .wrow .wn{flex:1;font-size:12px;color:var(--subtle)}
+  .wrow.idle{opacity:.72}
+
+  /* ---------- switcher ---------- */
+  .switcher{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;align-items:center;gap:4px;background:#0B1220;color:#E6EDF3;border-radius:999px;
+    padding:5px;box-shadow:0 10px 30px rgba(9,30,66,.35)}
+  .switcher button{background:transparent;border:0;color:#E6EDF3;width:34px;height:34px;border-radius:999px;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .switcher button:hover{background:#1F2937}
+  .swlabel{display:flex;flex-direction:column;align-items:center;min-width:280px;padding:0 8px;line-height:1.25}
+  .swidx{font-size:10px;font-family:var(--mono);color:#8DA2B8;letter-spacing:.05em}
+  .swtitle{font-size:12.5px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="badge">PROTOTYPE</span>
+  <div>
+    <h1>Codegeist fleet — end-to-end UX</h1>
+    <div class="sub">Throwaway clickable UI of every screen in the demo flow. Use it to judge whether the experience hangs together: board → Rovo triage → fleet panel → fleet view → PR → MCP. Nothing here is wired to a backend.</div>
+  </div>
+  <div class="tbtools">
+    <div class="seg" id="variantSeg" title="Issue-panel layout variants">
+      <button data-v="A">Panel A</button>
+      <button data-v="B">Panel B</button>
+      <button data-v="C">Panel C</button>
+    </div>
+    <label class="toggle"><input type="checkbox" id="stateToggle"> Show ticket state</label>
+  </div>
+</div>
+
+<div class="shell" id="shell">
+  <aside class="rail" id="rail"></aside>
+  <main class="stage" id="stage"></main>
+  <aside class="statepane" id="statepane" style="display:none"></aside>
+</div>
+
+<div class="switcher">
+  <button id="prev" title="Previous screen (←)">&#9664;</button>
+  <div class="swlabel"><span class="swidx" id="swIdx"></span><span class="swtitle" id="swTitle"></span></div>
+  <button id="next" title="Next screen (→)">&#9654;</button>
+</div>
+
+<script>
+/* ============================================================
+   PROTOTYPE — throwaway. Answers one question:
+   "Does the fleet demo UX (all screens) make sense end to end?"
+   Panel has 3 deliberately different layouts (A/B/C).
+   ============================================================ */
+
+const STATUS_CLASS = {
+  'Backlog':'gray','Triaged':'teal','Ready for Build':'blue',
+  'In Build':'amber','In Review':'purple','Done':'green','Failed':'red'
+};
+function lz(s){ return '<span class="loz loz-' + (STATUS_CLASS[s]||'gray') + '">' + s + '</span>'; }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function mono(s){ return '<span class="mono">' + esc(s) + '</span>'; }
+
+function mk(o){ return Object.assign({
+  key:'FLT-101', summary:'', status:'Backlog', labels:[], worker:null, lease:null,
+  branch:null, pr:null, tests:null, snapshot:null, retry:null, requeued:false,
+  description:'', ac:[], log:[], assignee:'Pak Wai'
+}, o); }
+
+/* --------- the FLT-101 ticket at each point in the story --------- */
+const ROUGH_DESC = 'customers keep asking to get their usage numbers out. probably a button somewhere that downloads a spreadsheet. not sure which perms, and it should be quick i guess. pls make it real';
+const SPEC_DESC  = 'Customers need to get their usage data out of the product. Add a CSV export to the usage report so billing and BI teams can pull the numbers themselves.';
+const SPEC_AC = [
+  'The usage report shows an "Export CSV" button for users with the Reports permission.',
+  'The export includes the same columns and date range currently shown on screen.',
+  'A 50k-row export completes in under 10 seconds.',
+  'An empty range exports a header-only CSV instead of erroring.'
+];
+const SPEC_NOTES = 'Reuse the existing report query; stream rows to avoid buffering; add a format=csv param to GET /reports/usage.';
+
+const LOG_INBUILD = [
+  '10:02:14  worker-04 claimed FLT-101  (lease 15:00)',
+  '10:02:15  verify ok — fleet_worker=worker-04',
+  '10:02:16  snapshot ticket v3 (summary/description/AC)',
+  '10:02:17  git reset --hard origin/main @ a1b2c3d',
+  '10:02:19  branch FLT-101-add-csv-export',
+  '10:02:21  adapter=copilot  copilot -p (programmatic / autopilot mode)',
+  '10:03:02  read  src/reports/usage.ts',
+  '10:03:40  write src/reports/export-csv.ts',
+  '10:05:11  tests: 24 passed, 0 failed',
+  '10:05:22  git push → pull-requests/42',
+  '10:05:23  transition In Build → In Review'
+];
+const LOG_REQUEUE = [
+  '10:31:02  heartbeat missed — lease last refreshed 10:22:44 (later than 15m stale)',
+  '10:34:00  reaper: FLT-101 In Build, lease stale → requeue',
+  '10:34:00  cleared fleet_worker, fleet_lease',
+  '10:34:00  comment: "requeued after lease expiry (worker-04)"'
+];
+
+const STEPS = [
+  {
+    kind:'board', group:'Jira board', title:'Board — rough idea lands in Backlog',
+    url:'acme.atlassian.net/jira/software/projects/FLT/boards/1',
+    note:'The engineer drops a rough idea straight into the backlog. No spec, no acceptance criteria — just intent.',
+    ticket: mk({ status:'Backlog', summary:'CSV export for usage data?', labels:['needs-spec'], description:ROUGH_DESC })
+  },
+  {
+    kind:'rovo', group:'Rovo', title:'Fleet Steward — triage a rough ticket',
+    url:'acme.atlassian.net/jira/software/projects/FLT/boards/1?rovo=steward',
+    note:'The Rovo agent refines the rough ticket into a build-ready spec and offers its actions. It only shapes tickets — it never claims, runs, or merges.',
+    ticket: mk({ status:'Triaged', summary:'Add CSV export to the usage report', labels:['needs-spec','fleet-ready'], description:SPEC_DESC, ac:SPEC_AC })
+  },
+  {
+    kind:'board', group:'Jira board', title:'Board — Ready for Build',
+    url:'acme.atlassian.net/jira/software/projects/FLT/boards/1',
+    note:'Marked fleet-ready. On its next poll the worker\u2019s JQL (status = "Ready for Build") will see it and claim by transitioning the ticket.',
+    ticket: mk({ status:'Ready for Build', summary:'Add CSV export to the usage report', labels:['fleet-ready'], description:SPEC_DESC, ac:SPEC_AC })
+  },
+  {
+    kind:'issue', group:'Jira issue (Forge panel)', title:'Fleet panel — ready, not claimed',
+    url:'acme.atlassian.net/browse/FLT-101',
+    note:'Opening the ticket shows the Forge "Fleet" panel. Nothing running yet — the human can dispatch it now, or wait for the poller.',
+    ticket: mk({ status:'Ready for Build', summary:'Add CSV export to the usage report', labels:['fleet-ready'], description:SPEC_DESC, ac:SPEC_AC })
+  },
+  {
+    kind:'term', term:'worker', group:'Terminal', title:'Worker onboarding — a laptop joins the fleet',
+    url:'Terminal — zsh — npx fleet-worker',
+    note:'A judge (or any teammate) turns a laptop into a worker with one command. This is what makes the fleet real with zero infra.',
+    ticket: mk({ status:'Ready for Build', summary:'Add CSV export to the usage report', description:SPEC_DESC, ac:SPEC_AC })
+  },
+  {
+    kind:'issue', group:'Jira issue (Forge panel)', title:'Fleet panel — In Build (live)',
+    url:'acme.atlassian.net/browse/FLT-101',
+    note:'Claimed. Worker + lease are visible, the run-log tail streams, and a human can abort & requeue. This is the centrepiece of the demo.',
+    ticket: mk({ status:'In Build', summary:'Add CSV export to the usage report', labels:['fleet-ready'],
+      worker:'worker-04', lease:'renewing', branch:'FLT-101-add-csv-export',
+      snapshot:'v3 @ 10:02:16', description:SPEC_DESC, ac:SPEC_AC, log:LOG_INBUILD })
+  },
+  {
+    kind:'issue', group:'Jira issue (Forge panel)', title:'Fleet panel — In Review',
+    url:'acme.atlassian.net/browse/FLT-101',
+    note:'The run finished: branch pushed, PR opened, tests green, ticket auto-moved to In Review. The agent stops here — a human takes over.',
+    ticket: mk({ status:'In Review', summary:'Add CSV export to the usage report', labels:['fleet-ready'],
+      worker:'worker-04', branch:'FLT-101-add-csv-export', pr:'pull-requests/42',
+      tests:{ran:24,passed:24}, snapshot:'v3 @ 10:02:16', description:SPEC_DESC, ac:SPEC_AC, log:LOG_INBUILD })
+  },
+  {
+    kind:'pr', group:'Bitbucket', title:'Pull request — human review gate',
+    url:'bitbucket.org/acme/app/pull-requests/42',
+    note:'The PR is fully written for the reviewer: what changed, test results, and the AC checklist. The fleet never merges — a human does.',
+    ticket: mk({ status:'In Review', summary:'Add CSV export to the usage report',
+      worker:'worker-04', branch:'FLT-101-add-csv-export', pr:'pull-requests/42',
+      tests:{ran:24,passed:24}, snapshot:'v3 @ 10:02:16' })
+  },
+  {
+    kind:'board', group:'Jira board', title:'Board — merged and Done',
+    url:'acme.atlassian.net/jira/software/projects/FLT/boards/1',
+    note:'After the human merges, the ticket is Done and the dev panel shows the closing PR. The board is the single source of truth throughout.',
+    ticket: mk({ status:'Done', summary:'Add CSV export to the usage report', labels:['fleet-ready'],
+      worker:'worker-04', branch:'FLT-101-add-csv-export', pr:'pull-requests/42',
+      tests:{ran:24,passed:24}, snapshot:'v3 @ 10:02:16' })
+  },
+  {
+    kind:'fleet', group:'Jira', title:'Fleet view — who is connected',
+    url:'acme.atlassian.net/jira/software/projects/FLT/fleet',
+    note:'A fleet-wide roster derived from Jira: distinct Fleet Worker across tickets in In Build. Flip the source toggle to compare with a heartbeat registry — note idle workers are invisible in the derived view.',
+    ticket: mk({ status:'In Build', summary:'Add CSV export to the usage report', labels:['fleet-ready'],
+      worker:'worker-04', lease:'renewing', branch:'FLT-101-add-csv-export', snapshot:'v3 @ 10:02:16',
+      description:SPEC_DESC, ac:SPEC_AC, log:LOG_INBUILD })
+  },
+  {
+    kind:'term', term:'mcp', group:'Terminal', title:'MCP — ask the fleet from any coding agent',
+    url:'Terminal — Claude Code — MCP: fleet',
+    note:'The same state is readable (and repairable) through an MCP server. Workers bypass it entirely, so it can be deleted without changing fleet behaviour.',
+    ticket: mk({ status:'Done', summary:'Add CSV export to the usage report',
+      worker:'worker-04', branch:'FLT-101-add-csv-export', pr:'pull-requests/42' })
+  },
+  {
+    kind:'issue', group:'Jira issue (Forge panel)', title:'Fleet panel — crash self-heals',
+    url:'acme.atlassian.net/browse/FLT-101',
+    note:'A worker dies mid-run. The lease goes stale, the reaper requeues the ticket and leaves a comment — no orphan state outside Jira, no manual cleanup.',
+    ticket: mk({ status:'Ready for Build', summary:'Add CSV export to the usage report', labels:['fleet-ready'],
+      worker:null, lease:'stale', retry:'1 / 1', requeued:true,
+      description:SPEC_DESC, ac:SPEC_AC, log:LOG_REQUEUE })
+  }
+];
+
+let current = 0;
+let variant = 'A';
+let fleetMode = 'derived';
+const stage = document.getElementById('stage');
+const rail = document.getElementById('rail');
+const statepane = document.getElementById('statepane');
+const shell = document.getElementById('shell');
+
+/* -------------------- shared pieces -------------------- */
+function workerChip(w){
+  const initials = w.replace(/[^0-9]/g,'').slice(-2) || '??';
+  return '<span class="wchip"><span class="wavatar">' + initials + '</span>' + esc(w) + '</span>';
+}
+
+function boardTickets(flt){
+  return [
+    {key:'FLT-102', summary:'Dark mode for the settings screen', status:'Backlog', labels:[]},
+    {key:'FLT-100', summary:'Rate-limit the /export API', status:'Triaged', labels:['api']},
+    flt,
+    {key:'FLT-99', summary:'Fix pagination off-by-one in results', status:'Done', labels:[]},
+    {key:'FLT-97', summary:'Refresh onboarding copy', status:'Done', labels:[]}
+  ];
+}
+
+const COLS = ['Backlog','Triaged','Ready for Build','In Build','In Review','Done'];
+
+function cardHTML(t){
+  const is101 = t.key === 'FLT-101';
+  const foot = [];
+  (t.labels||[]).forEach(l => foot.push('<span class="label">' + l + '</span>'));
+  if (t.worker) foot.push(workerChip(t.worker));
+  if (t.status === 'In Build' && t.lease) foot.push('<span class="lease">lease ' + (t.lease === 'stale' ? 'EXPIRED' : '12:41') + '</span>');
+  if (t.pr) foot.push('<span class="chip">PR #42</span>');
+  if (t.status === 'Failed') foot.push('<span class="chip" style="color:var(--red)">retry ' + (t.retry||'1 / 1') + '</span>');
+  return '<div class="card' + (is101?' hi':'') + (t.status==='Failed'?' failed':'') + '">' +
+    '<div class="k">' + t.key + '</div>' +
+    '<div class="s">' + esc(t.summary) + '</div>' +
+    '<div class="foot">' + foot.join('') + '</div>' +
+    '</div>';
+}
+
+function renderBoard(t){
+  const tickets = boardTickets(t);
+  const cols = COLS.map(c => {
+    const items = tickets.filter(x => x.status === c);
+    return '<div class="col"><div class="col-h"><span class="ct">' + c + '</span><span class="cc">' + items.length + '</span></div>' +
+      (items.map(cardHTML).join('') || '<div class="faint small" style="padding:8px 6px">—</div>') + '</div>';
+  }).join('');
+  return '<div class="board-head"><h3>FLT board</h3>' +
+    '<span class="small muted">Kanban · company-managed project · the single source of truth</span></div>' +
+    '<div class="board">' + cols + '</div>';
+}
+
+/* --------- fleet panel: three structurally different layouts --------- */
+function fleetActions(t){
+  const a = [];
+  if (t.status === 'Ready for Build' && !t.worker) {
+    a.push('<button class="btn primary small">Dispatch to fleet</button>');
+    a.push('<button class="btn ghost small" disabled>Abort &amp; requeue</button>');
+  } else if (t.status === 'In Build') {
+    a.push('<button class="btn danger small">Abort &amp; requeue</button>');
+    a.push('<button class="btn ghost small" disabled>Open pull request</button>');
+  } else if (t.status === 'In Review' || t.status === 'Done') {
+    a.push('<button class="btn primary small">Open pull request</button>');
+    a.push('<button class="btn ghost small">Abort &amp; requeue</button>');
+  } else if (t.requeued) {
+    a.push('<button class="btn ghost small" disabled>Abort &amp; requeue</button>');
+    a.push('<span class="fnote">Requeued by reaper — retry ' + (t.retry||'1 / 1') + '</span>');
+  }
+  return a.join('');
+}
+
+function logHTML(t, extra){
+  if (!t.log || !t.log.length) return '';
+  const lines = t.log.map(l => {
+    const m = l.match(/^(\d\d:\d\d:\d\d)(.*)$/);
+    if (!m) return '<div>' + esc(l) + '</div>';
+    let cls = '';
+    if (/transition|pushed|0 failed|verify ok/i.test(m[2])) cls = 'ok';
+    else if (/missed|stale|requeue|cleared/i.test(m[2])) cls = 'warn';
+    return '<div><span class="ts">' + m[1] + '</span><span class="' + cls + '">' + esc(m[2]) + '</span></div>';
+  });
+  return '<div class="logwrap"><div class="logh">Run log — tail' + (extra||'') + '</div><pre class="log">' + lines.join('') + '</pre></div>';
+}
+
+function leaseValue(t){
+  if (t.lease === 'stale') return '<span style="color:var(--red)">expired</span>';
+  if (t.lease === 'renewing') return '<span id="leaseCount" class="mono" style="color:var(--amber)">12:41</span> <span class="faint small">renews / 5m</span>';
+  return '<span class="faint">—</span>';
+}
+function workerValue(t){ return t.worker ? workerChip(t.worker) : '<span class="faint">—</span>'; }
+function branchValue(t){ return t.branch ? '<a href="#">' + esc(t.branch) + '</a>' : '<span class="faint">—</span>'; }
+function prValue(t){ return t.pr ? '<a href="#">Pull request #42</a>' : '<span class="faint">—</span>'; }
+function testValue(t){ return t.tests ? '<span style="color:var(--green)">' + t.tests.passed + ' / ' + t.tests.ran + ' passed</span>' : '<span class="faint">—</span>'; }
+function snapValue(t){ return t.snapshot ? mono(t.snapshot) : '<span class="faint">—</span>'; }
+
+function fleetPanelA(t){
+  return '<section class="panel"><header class="panel-h"><span class="pdot"></span><h4>Fleet</h4>' +
+    '<span class="spacer"></span>' + lz(t.status) + '</header><div class="panel-b">' +
+    '<div class="fgrid">' +
+      '<div><div class="fk">Worker</div><div class="fv">' + workerValue(t) + '</div></div>' +
+      '<div><div class="fk">Lease</div><div class="fv">' + leaseValue(t) + '</div></div>' +
+      '<div><div class="fk">Snapshot</div><div class="fv">' + snapValue(t) + '</div></div>' +
+      '<div><div class="fk">Branch</div><div class="fv">' + branchValue(t) + '</div></div>' +
+      '<div><div class="fk">Pull request</div><div class="fv">' + prValue(t) + '</div></div>' +
+      '<div><div class="fk">Tests</div><div class="fv">' + testValue(t) + '</div></div>' +
+    '</div>' + logHTML(t) + '<div class="factions">' + fleetActions(t) + '</div>' +
+    '</div></section>';
+}
+
+function fleetPanelB(t){
+  return '<section class="panel"><div class="strip"><span class="pdot"></span><b>Fleet</b>' + lz(t.status) +
+    '<span class="small muted">' + (t.worker ? esc(t.worker) : 'unclaimed') + (t.lease === 'renewing' ? ' · lease ' : '') + '</span>' +
+    (t.lease === 'renewing' ? '<span id="leaseCount" class="mono" style="color:var(--amber)">12:41</span>' : '') +
+    '<span class="spacer"></span><button class="btn ghost small">Open fleet console</button></div>' +
+    '<div class="drawer">' +
+      '<div class="sidecard" style="margin:0">' +
+        '<h5>Claim</h5>' +
+        '<div class="kv"><span class="kk">Worker</span><span class="vv">' + workerValue(t) + '</span></div>' +
+        '<div class="kv"><span class="kk">Lease</span><span class="vv">' + leaseValue(t) + '</span></div>' +
+        '<div class="kv"><span class="kk">Branch</span><span class="vv">' + branchValue(t) + '</span></div>' +
+        '<div class="kv"><span class="kk">Pull request</span><span class="vv">' + prValue(t) + '</span></div>' +
+        '<div class="kv"><span class="kk">Tests</span><span class="vv">' + testValue(t) + '</span></div>' +
+        '<div class="kv"><span class="kk">Snapshot</span><span class="vv">' + snapValue(t) + '</span></div>' +
+        '<div style="margin-top:12px">' + fleetActions(t) + '</div>' +
+      '</div>' +
+      (t.log && t.log.length ? '<div class="logwrap" style="margin:0"><div class="logh">Run log — tail</div><pre class="log">' +
+        t.log.map(l => '<div>' + esc(l) + '</div>').join('') + '</pre></div>' : '<div class="faint small">No run yet.</div>') +
+    '</div></section>';
+}
+
+function fleetPanelC(t){
+  const rows = [
+    ['Status', lz(t.status)],
+    ['Worker', workerValue(t)],
+    ['Lease', leaseValue(t)],
+    ['Branch', branchValue(t)],
+    ['Pull request', prValue(t)],
+    ['Tests', testValue(t)],
+    ['Snapshot', snapValue(t)]
+  ].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('');
+  const log = (t.log && t.log.length) ? t.log.map(l => '<div>' + esc(l) + '</div>').join('')
+            : '<div class="dim"># no active run — waiting for a claim</div>';
+  return '<section class="panel"><header class="panel-h"><span class="pdot"></span><h4>Fleet control room</h4>' +
+    '<span class="spacer"></span><span class="small muted">via Forge issue panel</span></header>' +
+    '<div class="console"><div class="c-left"><table class="ftable">' + rows + '</table>' +
+    '<div class="factions">' + fleetActions(t) + '</div></div>' +
+    '<div class="c-right"><pre class="log">' + log + '</pre></div></div></section>';
+}
+
+function renderIssue(t){
+  const panel = variant === 'B' ? fleetPanelB(t) : variant === 'C' ? fleetPanelC(t) : fleetPanelA(t);
+  const ac = (t.ac && t.ac.length) ? t.ac : null;
+  const acHTML = ac
+    ? '<h4>Acceptance criteria</h4><ul class="ac">' + ac.map(a =>
+        '<li><span class="bx' + (t.status==='Done'?' done':'') + '">' + (t.status==='Done'?'✓':'') + '</span><span>' + esc(a) + '</span></li>').join('') + '</ul>'
+    : '<p class="faint small">No acceptance criteria yet — Rovo will add them during triage.</p>';
+
+  const requeueComment = t.requeued
+    ? '<div class="comment"><div class="cavatar sys">⤾</div><div class="cbody"><div class="cmeta">Fleet reaper <span class="faint small">· 10:34</span></div>Requ requeued after lease expiry (worker-04). Cleared fleet_worker and fleet_lease. Retry budget used: 1 / 1 — a second failure will move this to Failed.</div></div>'
+    : '';
+
+  const dispatchBtn = t.status === 'Ready for Build' && !t.worker
+    ? '<div class="banner" style="background:#F4F8FF;color:var(--blue-ink);border-color:#CCE0FF">Fleet-ready — a worker will claim this within ~45s. Prefer to dispatch now?</div>'
+    : '';
+
+  return '<div class="crumb">Projects / FLT / <b>FLT-101</b></div>' +
+    '<div class="issue-h"><span class="ik">FLT-101</span>' + lz(t.status) + '</div>' +
+    '<div class="issue-title">' + esc(t.summary) + '</div>' +
+    dispatchBtn +
+    panel +
+    '<div class="tabs"><span class="on">Details</span><span>Comments</span><span>History</span><span>Fleet</span></div>' +
+    '<div class="grid2">' +
+      '<div class="desc-card"><h4>Description</h4><p>' + esc(t.description || '—') + '</p>' + acHTML + '</div>' +
+      '<div>' +
+        '<div class="sidecard"><h5>Details</h5>' +
+          '<div class="kv"><span class="kk">Assignee</span><span class="vv">' + esc(t.assignee) + '</span></div>' +
+          '<div class="kv"><span class="kk">Labels</span><span class="vv">' + ((t.labels||[]).map(l=>'<span class="label">'+l+'</span>').join(' ') || '—') + '</span></div>' +
+          '<div class="kv"><span class="kk">Project</span><span class="vv">FLT · kanban</span></div>' +
+        '</div>' +
+        '<div class="sidecard"><h5>Development</h5>' +
+          '<div class="kv"><span class="kk">Branch</span><span class="vv">' + branchValue(t) + '</span></div>' +
+          '<div class="kv"><span class="kk">Pull request</span><span class="vv">' + prValue(t) + '</span></div>' +
+        '</div>' +
+        (requeueComment ? '<div class="sidecard">' + requeueComment + '</div>' : '') +
+      '</div>' +
+    '</div>';
+}
+
+/* -------------------- Rovo chat -------------------- */
+function renderRovo(t){
+  const acList = SPEC_AC.map(a => '<li><span class="tick">✓</span><span>' + esc(a) + '</span></li>').join('');
+  return '<div class="chat">' +
+    '<div class="msg user"><div class="who">You · engineer</div><div class="bubble">' +
+      'Here\u2019s a rough one. Clean it up and make it build-ready:' +
+      '<div class="quote">' + esc(ROUGH_DESC) + '</div></div></div>' +
+    '<div class="msg bot"><div class="who"><span class="pdot" style="background:#6554C0;box-shadow:0 0 0 3px #E9E7FF"></span>Fleet Steward · Rovo agent</div><div class="bubble">' +
+      '<p style="margin:0 0 4px">Here\u2019s a build-ready spec. I kept the scope to the usage report — tell me if you want other reports too.</p>' +
+      '<div class="spec"><div class="spec-h"><span class="pdot" style="background:#6554C0;box-shadow:0 0 0 3px #E9E7FF"></span>Proposed ticket · FLT-101</div><div class="spec-b">' +
+        '<div class="field"><div class="lbl">Summary</div><div>' + esc(t.summary) + '</div></div>' +
+        '<div class="field"><div class="lbl">Description</div><div>' + esc(SPEC_DESC) + '</div></div>' +
+        '<div class="field"><div class="lbl">Acceptance criteria</div><ul class="checklist">' + acList + '</ul></div>' +
+        '<div class="field"><div class="lbl">Technical notes</div><div class="small muted">' + esc(SPEC_NOTES) + '</div></div>' +
+        '<div class="field"><div class="lbl">Labels</div><div><span class="label">fleet-ready</span></div></div>' +
+      '</div></div>' +
+      '<p class="small muted" style="margin:0">Scope: triage &amp; digest only — I never claim, schedule, run, or merge. A worker picks this up once it\u2019s fleet-ready.</p>' +
+      '<div class="actions">' +
+        '<span class="chip-act">✦ Refine ticket</span>' +
+        '<span class="chip-act">✦ Mark fleet-ready</span>' +
+        '<span class="chip-act">✦ Fleet digest</span>' +
+        '<span class="chip-done">✓ FLT-101 → Ready for Build · label fleet-ready added</span>' +
+      '</div>' +
+    '</div></div>' +
+  '</div>';
+}
+
+/* -------------------- terminals -------------------- */
+function renderTerm(which){
+  if (which === 'worker') { // worker onboarding
+    return '<div class="term">' +
+      '<span class="d"># any laptop becomes a fleet worker — nothing to install but Node</span>\n' +
+      '<span class="p">$</span> npx fleet-worker --jira acme.atlassian.net --project FLT --token <span class="y">****</span>\n\n' +
+      '<span class="d">[ok]</span> authenticated as <span class="c">fleet-bot</span> (browse + edit + transition @ FLT)\n' +
+      '<span class="d">[ok]</span> git remote ok — bitbucket.org/acme/app\n' +
+      '<span class="d">[ok]</span> adapter <span class="c">copilot</span> detected — gh auth ok (Copilot subscription)\n' +
+      '<span class="d">[fleet]</span> workspace ~/.fleet/workers/worker-04/app  (persistent clone, 1 run at a time)\n' +
+      '<span class="d">[fleet]</span> polling every 45s\n' +
+      '       JQL: project=FLT AND status="Ready for Build" ORDER BY priority DESC, created ASC\n\n' +
+      '<span class="d">10:02:11</span> 1 claimable → <span class="w">FLT-101</span>\n' +
+      '<span class="d">10:02:14</span> claim → transition <span class="c">Ready for Build → In Build</span>  <span class="d">(CAS: source-status precondition)</span>\n' +
+      '<span class="d">10:02:15</span> <span class="p">verify ok</span> — fleet_worker=worker-04\n' +
+      '<span class="d">[fleet]</span> running adapter… <span class="caret"></span>' +
+    '</div>';
+  }
+  // MCP session
+  return '<div class="term">' +
+    '<span class="d"># a local coding agent wired to the Fleet MCP server (read-mostly)</span>\n' +
+    '<span class="p">$</span> claude <span class="w">"what is the fleet doing right now?"</span>\n\n' +
+    '<span class="d">→ mcp</span> <span class="c">fleet_status</span> {}\n' +
+    '<span class="d">←</span> {\n' +
+    '    <span class="c">"claims"</span>: [ { "key": <span class="w">"FLT-101"</span>, "worker": "worker-04", "status": "In Review", "pr": "pull-requests/42" } ],\n' +
+    '    <span class="c">"queued"</span>: 1, <span class="c">"stale"</span>: 0, <span class="c">"failed"</span>: 0\n' +
+    '  }\n\n' +
+    '<span class="d">→ mcp</span> <span class="c">list_claimable_tickets</span> { "project": "FLT" }\n' +
+    '<span class="d">←</span> [ { "key": "FLT-102", "summary": "Dark mode for the settings screen", "priority": "Med" } ]\n\n' +
+    '<span class="d">→ mcp</span> <span class="c">reset_claim</span> { "key": "FLT-101" }  <span class="d"># abort / requeue a wrong or stale claim</span>\n' +
+    '<span class="d">←</span> { "key": "FLT-101", "status": "Ready for Build", "cleared": ["fleet_worker","fleet_lease"] } <span class="y">← refused: run still live</span>\n\n' +
+    '<span class="d"># resource:</span> <span class="c">fleet://status</span> → { "active": 1, "queued": 1, "last_reap": "10:34" }\n' +
+    '<span class="d"># workers never call this — delete the MCP layer and the fleet is unchanged.</span> <span class="caret"></span>' +
+  '</div>';
+}
+
+/* -------------------- Pull request -------------------- */
+function renderPR(t){
+  return '<div class="pr-h"><div><h3><span class="k">FLT-101:</span> Add CSV export to the usage report</h3>' +
+    '<div class="branches"><span class="branch-pill">FLT-101-add-csv-export</span> → <span class="branch-pill">main</span>' +
+    '<span class="chip">by fleet-bot</span><span class="chip">auto-linked by branch name</span></div></div>' +
+    '<div class="pr-actions"><button class="btn ghost small">Approve</button><button class="btn ghost small">Request changes</button><button class="btn primary small">Merge</button></div></div>' +
+    '<div class="banner">✓ 24 / 24 tests passed · opened by worker-04 · snapshot v3 @ 10:02:16</div>' +
+    '<div class="grid2"><div class="pr-body">' +
+      '<h5>What changed</h5>' +
+      '<p>Added a streaming CSV export to the usage report. New endpoint parameter <span class="mono">format=csv</span> on <span class="mono">GET /reports/usage</span>; a new export button on the report toolbar, gated on the Reports permission.</p>' +
+      '<h5>Acceptance criteria</h5>' +
+      '<ul class="checklist">' + SPEC_AC.map(a => '<li><span class="tick">✓</span><span>' + esc(a) + '</span></li>').join('') + '</ul>' +
+      '<h5>Tests</h5><p class="mono small">24 passed, 0 failed · new export-csv.test.ts covers streaming + empty range</p>' +
+      '<p class="small muted">Ticket was snapshotted at claim time. Live edits to the ticket after that never affect this run — reconcile at review.</p>' +
+    '</div><div>' +
+      '<div class="sidecard"><h5>Reviewers</h5>' +
+        '<div class="kv"><span class="kk">Requested</span><span class="vv">Pak Wai</span></div>' +
+        '<div class="kv"><span class="kk">Auto-merge</span><span class="vv" style="color:var(--red)">never</span></div>' +
+      '</div>' +
+      '<div class="sidecard"><h5>Checks</h5>' +
+        '<div class="kv"><span class="kk">Build</span><span class="vv" style="color:var(--green)">passing</span></div>' +
+        '<div class="kv"><span class="kk">Tests</span><span class="vv" style="color:var(--green)">24 / 24</span></div>' +
+        '<div class="kv"><span class="kk">Fleet review</span><span class="vv">human required</span></div>' +
+      '</div>' +
+    '</div></div>' +
+    '<div class="comment"><div class="cavatar">PW</div><div class="cbody"><div class="cmeta">Pak Wai <span class="faint small">· just now</span></div>Looks right — merging.</div></div>';
+}
+
+/* -------------------- fleet view (fleet-wide roster) -------------------- */
+function fleetRow(w){
+  const av = '<span class="wavatar">' + ((w.id.replace(/[^0-9]/g,'').slice(-2)) || '??') + '</span>';
+  const ticket = w.ticket ? '<span class="wt">' + esc(w.ticket) + '</span>' : '<span class="wt faint">—</span>';
+  const status = w.status ? lz(w.status) : '<span class="chip">idle</span>';
+  const tail = w.lease ? '<span class="lease">lease ' + w.lease + '</span>'
+                       : '<span class="chip">' + esc(w.heart || 'no heartbeat') + '</span>';
+  return '<div class="wrow' + (w.idle ? ' idle' : '') + '">' +
+    '<span class="wid">' + av + esc(w.id) + '</span>' + ticket + status +
+    '<span class="wn">' + esc(w.note || '') + '</span>' + tail + '</div>';
+}
+
+function renderFleet(){
+  const derived = fleetMode !== 'registry';
+  const busy = [
+    {id:'worker-04', ticket:'FLT-101', status:'In Build', lease:'12:41', note:'CSV export — running (~3 min in)'},
+    {id:'worker-11', ticket:'FLT-118', status:'In Build', lease:'3:07',  note:'webhook retry backoff'},
+    {id:'worker-02', ticket:'FLT-121', status:'In Build', lease:'14:52', note:'CSV export — just claimed'}
+  ];
+  const idle = [
+    {id:'worker-07', idle:true, note:'connected, nothing claimed', heart:'seen 8s ago'},
+    {id:'worker-09', idle:true, note:'daemon stopped', heart:'last seen 6m ago'}
+  ];
+  const workers = derived ? busy : busy.concat(idle);
+
+  const tiles = derived
+    ? [['Active workers','3',''],['In flight','3',''],['Queued (ready)','2',''],['Stale leases','0',''],['Failed','0','']]
+    : [['Workers online','5','good'],['In flight','3',''],['Idle','1',''],['Queued (ready)','2',''],['Stale leases','0','']];
+  const tileHTML = tiles.map(t => '<div class="tile ' + t[2] + '"><div class="tv">' + t[1] + '</div><div class="tl">' + t[0] + '</div></div>').join('');
+
+  const sourceNote = derived
+    ? '<div class="note" style="max-width:none"><span>ℹ️</span><span><b>Derived from Jira — free.</b> This list is just <span class="mono">distinct Fleet Worker</span> across tickets in <span class="mono">In&nbsp;Build</span>. An idle worker holds no claim, so it never appears — you can tell “3 busy” but not “how many machines are up”.</span></div>'
+    : '<div class="note" style="max-width:none;background:#FFF7ED;border-color:#FED7AA;color:#7C2D12"><span>⚠️</span><span><b>Registry — costs state.</b> Shows idle workers too, but needs a per-worker heartbeat. Forge&nbsp;KV breaks “workers never call Forge” (P1); keeping it Jira-native adds one write per worker per interval — which is the thing that caps the fleet at scale. Only worth it if the demo must show machines standing by.</span></div>';
+
+  return '<div class="crumb">Projects / FLT / <b>Fleet</b></div>' +
+    '<div class="board-head"><h3>FLT Fleet</h3>' +
+      '<span class="chip">jira:projectPage / dashboard gadget</span>' +
+      '<span class="spacer"></span>' +
+      '<span class="small muted mono">status = "In Build"</span></div>' +
+    '<div class="fv-toolbar"><span class="small muted">Source:</span>' +
+      '<div class="fv-mode">' +
+        '<button data-fleet-mode="derived" class="' + (derived ? 'on' : '') + '">Derived (free)</button>' +
+        '<button data-fleet-mode="registry" class="' + (!derived ? 'on' : '') + '">Registry (heartbeat)</button>' +
+      '</div>' +
+      '<span class="small faint">' + (derived ? 'read-only JQL — no extra writes' : '+1 heartbeat write per worker / interval') + '</span>' +
+    '</div>' +
+    '<div class="tiles">' + tileHTML + '</div>' +
+    sourceNote +
+    '<section class="panel"><header class="panel-h"><span class="pdot"></span><h4>' +
+      (derived ? 'Workers with a claim' : 'Workers seen') + '</h4>' +
+      '<span class="spacer"></span><span class="small muted">' + workers.length + ' listed</span></header>' +
+      '<div class="panel-b" style="padding:2px 15px">' + workers.map(fleetRow).join('') + '</div></section>';
+}
+
+/* -------------------- host frame + dispatch -------------------- */
+function bodyFor(step){
+  switch (step.kind) {
+    case 'board': return renderBoard(step.ticket);
+    case 'issue': return renderIssue(step.ticket);
+    case 'rovo':  return renderRovo(step.ticket);
+    case 'pr':    return renderPR(step.ticket);
+    case 'term':  return renderTerm(step.term);
+    case 'fleet': return renderFleet();
+  }
+}
+
+function frame(step){
+  const host = step.kind === 'term' ? 'Terminal' : step.kind === 'rovo' ? 'Rovo' : step.kind === 'pr' ? 'Bitbucket' : 'Jira';
+  return '<div class="hostframe"><div class="hostbar">' +
+      '<span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>' +
+      '<span class="url">' + esc(step.url) + '</span>' +
+      '<span class="chip">' + host + '</span></div>' +
+    '<div class="hostbody">' + bodyFor(step) + '</div></div>';
+}
+
+/* -------------------- render pipeline -------------------- */
+function renderRail(){
+  let html = '';
+  STEPS.forEach((s, i) => {
+    html += '<button data-i="' + i + '" class="' + (i===current?'on':'') + '">' +
+      '<span class="num">' + (i+1) + '</span>' +
+      '<span><span class="rl-t">' + esc(s.title) + '</span><br><span class="small faint">' + esc(s.group) + '</span></span>' +
+    '</button>';
+  });
+  rail.innerHTML = '<h2>Screens in the flow</h2>' + html;
+  rail.querySelectorAll('button').forEach(b => b.onclick = () => go(+b.dataset.i));
+}
+
+function renderState(t){
+  const rows = [
+    ['ticket', t.key],
+    ['status', t.status],
+    ['fleet_worker', t.worker],
+    ['fleet_lease', t.lease === 'renewing' ? 'renewing (+5m)' : t.lease === 'stale' ? 'EXPIRED' : null],
+    ['fleet_branch', t.branch],
+    ['fleet_pr', t.pr],
+    ['tests', t.tests ? t.tests.passed + ' / ' + t.tests.ran + ' passed' : null],
+    ['snapshot', t.snapshot],
+    ['retry_budget', t.retry]
+  ];
+  statepane.innerHTML = '<h2>FLT-101 · live fields</h2>' +
+    rows.map(r => '<div class="row"><div class="rk">' + r[0] + '</div><div class="rv' + (r[1]==null?' null':'') + '">' +
+      esc(r[1]==null ? 'null' : r[1]) + '</div></div>').join('') +
+    '<p class="small faint" style="margin-top:14px">These are the Jira custom fields the fleet reads and writes. All state lives here — no separate queue.</p>';
+}
+
+let leaseTimer = null;
+function startCountdown(){
+  if (leaseTimer) { clearInterval(leaseTimer); leaseTimer = null; }
+  const el = document.getElementById('leaseCount');
+  if (!el) return;
+  let s = 12*60 + 41;
+  leaseTimer = setInterval(() => {
+    s = s > 0 ? s - 1 : 5*60;
+    const m = Math.floor(s/60), sec = s%60;
+    el.textContent = m + ':' + String(sec).padStart(2,'0');
+    if (s === 5*60) el.textContent = '~renewed';
+  }, 1000);
+}
+
+function render(updateURL){
+  const step = STEPS[current];
+  stage.innerHTML = frame(step);
+  const noteEl = document.createElement('div');
+  noteEl.className = 'note';
+  noteEl.innerHTML = '<span>👀</span><span><b>What to check:</b> ' + esc(step.note) + '</span>';
+  stage.insertBefore(noteEl, stage.firstChild);
+  renderRail();
+  renderState(step.ticket);
+  document.getElementById('swIdx').textContent = 'STEP ' + (current+1) + ' / ' + STEPS.length;
+  document.getElementById('swTitle').textContent = step.title;
+  const showVariant = step.kind === 'issue';
+  document.getElementById('variantSeg').style.visibility = showVariant ? 'visible' : 'hidden';
+  document.querySelectorAll('#variantSeg button').forEach(b => b.classList.toggle('on', b.dataset.v === variant));
+  statepane.style.display = document.getElementById('stateToggle').checked ? 'block' : 'none';
+  shell.classList.toggle('with-state', document.getElementById('stateToggle').checked);
+  startCountdown();
+  if (updateURL) pushURL();
+}
+
+function pushURL(){
+  const step = STEPS[current];
+  try { history.replaceState(null, '', '?u=' + current + '&variant=' + variant); } catch(e) {}
+}
+
+function go(i){
+  current = (i + STEPS.length) % STEPS.length;
+  render(true);
+}
+
+/* -------------------- wiring -------------------- */
+document.getElementById('prev').onclick = () => go(current - 1);
+document.getElementById('next').onclick = () => go(current + 1);
+document.getElementById('stateToggle').onchange = () => render(false);
+document.querySelectorAll('#variantSeg button').forEach(b => b.onclick = () => { variant = b.dataset.v; render(true); });
+
+// fleet-view source toggle (delegated, since the panel is re-rendered)
+stage.addEventListener('click', (e) => {
+  const b = e.target && e.target.closest ? e.target.closest('[data-fleet-mode]') : null;
+  if (b) { fleetMode = b.getAttribute('data-fleet-mode'); render(false); }
+});
+
+document.addEventListener('keydown', (e) => {
+  const a = document.activeElement;
+  if (a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable)) return;
+  if (e.key === 'ArrowLeft') go(current - 1);
+  if (e.key === 'ArrowRight') go(current + 1);
+});
+
+// restore state from URL so a screen is shareable
+(function init(){
+  const p = new URLSearchParams(location.search);
+  const u = parseInt(p.get('u'), 10);
+  if (!isNaN(u) && u >= 0 && u < STEPS.length) current = u;
+  const v = p.get('variant');
+  if (v && 'ABC'.includes(v)) variant = v;
+  render(false);
+})();
+</script>
+</body>
+</html>

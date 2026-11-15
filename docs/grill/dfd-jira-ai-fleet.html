@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DFD — Jira-driven Decentralized AI Development Fleet</title>
+<style>
+  :root{
+    --ink:#0f172a; --ink2:#475569; --ink3:#64748b; --line:#e2e8f0;
+    --bg:#f8fafc; --card:#ffffff;
+    --ent-fill:#eef2ff; --ent-stroke:#6366f1;
+    --proc-fill:#e0f2fe; --proc-stroke:#0284c7;
+    --store-fill:#fef3c7; --store-stroke:#d97706;
+    --harness-fill:#d1fae5; --harness-stroke:#059669;
+    --human-fill:#ede9fe; --human-stroke:#7c3aed;
+    --group-fill:#f1f5f9; --group-stroke:#cbd5e1;
+    --flow:#94a3b8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--ink2);font-size:15px;margin:0 0 4px}
+  .meta{color:var(--ink3);font-size:13px;margin-top:8px}
+  .badge{display:inline-block;background:var(--ent-fill);color:var(--ent-stroke);
+    border:1px solid #c7d2fe;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;margin-right:6px}
+  section{margin-top:44px}
+  h2{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+  h2 .n{color:var(--ink3);font-weight:600;margin-right:8px}
+  .lead{color:var(--ink2);font-size:14px;margin:0 0 18px;max-width:80ch}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+  svg.dfd{width:100%;height:auto;display:block}
+  /* svg text styles */
+  .ntitle{font-size:14px;font-weight:700;fill:var(--ink)}
+  .nsub{font-size:11.5px;fill:var(--ink2)}
+  .nsmall{font-size:10.5px;fill:var(--ink3)}
+  .lbl{font-size:11px;fill:#334155}
+  .lblb{font-size:11.5px;fill:#1e293b;font-weight:600}
+  .flow{fill:none;stroke:var(--flow);stroke-width:1.6}
+  .flow.dash{stroke-dasharray:5 4}
+  .box-ent{fill:var(--ent-fill);stroke:var(--ent-stroke);stroke-width:1.5}
+  .box-proc{fill:var(--proc-fill);stroke:var(--proc-stroke);stroke-width:1.5}
+  .box-store{fill:var(--store-fill);stroke:var(--store-stroke);stroke-width:1.5}
+  .box-harness{fill:var(--harness-fill);stroke:var(--harness-stroke);stroke-width:1.5}
+  .box-human{fill:var(--human-fill);stroke:var(--human-stroke);stroke-width:1.5}
+  .box-group{fill:var(--group-fill);stroke:var(--group-stroke);stroke-width:1.4;stroke-dasharray:6 5}
+  .box-step{fill:#ffffff;stroke:#bae6fd;stroke-width:1.2}
+  .box-fail{fill:#fee2e2;stroke:#dc2626;stroke-width:1.5}
+  /* legend */
+  .legend{display:flex;flex-wrap:wrap;gap:18px;margin:0 0 18px;padding:14px 16px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .lg{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink2)}
+  .swatch{width:22px;height:16px;border-radius:4px;border:1.5px solid #000}
+  .sw-ent{background:var(--ent-fill);border-color:var(--ent-stroke)}
+  .sw-proc{background:var(--proc-fill);border-color:var(--proc-stroke)}
+  .sw-store{background:var(--store-fill);border-color:var(--store-stroke)}
+  .sw-harness{background:var(--harness-fill);border-color:var(--harness-stroke)}
+  .sw-human{background:var(--human-fill);border-color:var(--human-stroke)}
+  .sw-flow{width:30px;height:0;border-top:2px solid var(--flow);border-radius:0}
+  /* sequence */
+  .seq{display:flex;flex-direction:column;gap:0}
+  .step{display:grid;grid-template-columns:56px 1fr;gap:16px;position:relative;padding-bottom:16px}
+  .step:not(:last-child)::before{content:"";position:absolute;left:27px;top:44px;bottom:-2px;width:2px;background:var(--line)}
+  .num{width:56px;height:34px;border-radius:10px;background:var(--proc-fill);color:#0369a1;
+    border:1.5px solid var(--proc-stroke);display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:14px}
+  .stepbody{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+  .stepbody h3{margin:0 0 6px;font-size:15px}
+  .io{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chip{font-size:12px;border-radius:8px;padding:3px 9px;border:1px solid}
+  .chip.r{background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8}
+  .chip.w{background:#fff7ed;border-color:#fed7aa;color:#c2410c}
+  .chip.s{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+  .chip.h{background:#faf5ff;border-color:#e9d5ff;color:#7e22ce}
+  .chip.d{background:#f8fafc;border-color:var(--line);color:var(--ink3)}
+  /* failure grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .fcard{background:var(--card);border:1px solid var(--line);border-left:4px solid #dc2626;
+    border-radius:12px;padding:14px 16px}
+  .fcard h3{margin:0 0 6px;font-size:14.5px}
+  .fcard p{margin:0;font-size:13px;color:var(--ink2)}
+  .fcard.calm{border-left-color:var(--proc-stroke)}
+  .fcard.calm h3 strong{color:#0369a1}
+  code{background:#f1f5f9;border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12.5px;
+    font-family:"Cascadia Code",Consolas,Menlo,monospace}
+  .contract{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .contract pre{margin:0;background:#0f172a;color:#e2e8f0;border-radius:12px;padding:16px;
+    font-size:12.5px;overflow:auto;font-family:"Cascadia Code",Consolas,Menlo,monospace;line-height:1.6}
+  .contract h3{margin:0 0 8px;font-size:14px}
+  .k{color:#7dd3fc}.v{color:#86efac}.c{color:#94a3b8}
+  .callout{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 16px;
+    font-size:13px;color:#1e3a8a;margin-top:14px}
+  @media (max-width:720px){.contract{grid-template-columns:1fr}}
+
+  /* ===== interactive Level-1 diagram ===== */
+  #l1 .flows path{transition:opacity .15s ease,stroke .15s ease,stroke-width .15s ease}
+  #l1 .flowlabels text{transition:opacity .15s ease}
+  /* halo keeps every flow label readable, even where it crosses a box */
+  #l1 .flowlabels text{paint-order:stroke;stroke:#ffffff;stroke-width:3.6px;stroke-linejoin:round}
+  /* concurrency inset: one winner, the rest rejected */
+  #l1 .flow.win{stroke:#059669;stroke-width:2.4}
+  #l1 .flow.lose{stroke:#dc2626;stroke-dasharray:5 4}
+  #l1 .box-inset{fill:#fbfdff;stroke:#cbd5e1;stroke-width:1.3;stroke-dasharray:6 5}
+  #l1 .is-dim{opacity:.13}
+  #l1 .flow.is-on{stroke:#334155;stroke-width:2.6}
+  #l1 .node.is-active rect{stroke-width:2.8}
+  #l1 .node-hit{cursor:pointer}
+  #l1 .hits path{fill:none;stroke:transparent;stroke-width:18;pointer-events:stroke;cursor:help}
+  .dfd-toolbar{display:flex;align-items:center;gap:12px;margin:0 0 12px;flex-wrap:wrap}
+  .dfd-hint{font-size:12.5px;color:var(--ink3);flex:1;min-width:220px}
+  .dfd-btn{border:1px solid var(--line);background:var(--card);color:var(--ink2);border-radius:8px;
+    padding:5px 12px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .dfd-btn:hover{background:#f1f5f9}
+  .dfd-btn.on{background:#0f172a;color:#fff;border-color:#0f172a}
+  .dfd-inspect{margin-top:14px;border:1px solid var(--line);border-radius:12px;background:#f8fafc;
+    padding:14px 16px;font-size:13px;color:var(--ink2);min-height:58px}
+  .dfd-inspect h4{margin:0 0 6px;font-size:14px;color:var(--ink)}
+  .dfd-inspect p{margin:4px 0}
+  .dfd-inspect .tag{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;
+    padding:1px 9px;margin-left:8px;vertical-align:1px}
+  .dfd-inspect ul{margin:8px 0 0;padding-left:18px}
+  .dfd-inspect li{margin:4px 0}
+  .dfd-inspect .dir{color:var(--ink3);font-size:12px}
+  .dfd-tip{position:fixed;z-index:60;max-width:320px;background:#0f172a;color:#e2e8f0;border-radius:10px;
+    padding:9px 12px;font-size:12.5px;line-height:1.5;pointer-events:none;box-shadow:0 8px 24px rgba(15,23,42,.28)}
+  .dfd-tip b{color:#7dd3fc}
+  @media (max-width:820px){.dfd-hint{display:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#94a3b8"/></marker>
+    <marker id="ahr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#dc2626"/></marker>
+    <marker id="ahg" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto-start-reverse"
+      markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#059669"/></marker>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Data Flow Diagram — Jira-driven Decentralized AI Development Fleet</h1>
+    <p class="sub">A fleet of worker daemons poll a Jira board, claim tickets atomically, run a coding harness in a
+      workspace, and open pull requests for humans to merge. Jira is the only queue.</p>
+    <p class="meta"><span class="badge">Codegeist 2026</span>
+      Derived from <code>docs/grill/codegeist-jira-ai-fleet.md</code> — 2026-11-15</p>
+  </header>
+
+  <div class="legend">
+    <div class="lg"><span class="swatch sw-human"></span>External entity (actor)</div>
+    <div class="lg"><span class="swatch sw-proc"></span>Process</div>
+    <div class="lg"><span class="swatch sw-store"></span>Data store</div>
+    <div class="lg"><span class="swatch sw-harness"></span>Compute / harness</div>
+    <div class="lg"><span class="sw-flow"></span>Data flow (arrow = direction; ⇄ double-headed)</div>
+  </div>
+
+  <!-- ============ LEVEL 0 ============ -->
+  <section>
+    <h2><span class="n">0</span>Context diagram (Level 0)</h2>
+    <p class="lead">The whole fleet as a single system and the external parties it exchanges data with. All arrows carry
+      data, never control — the fleet only reads and writes Jira, a git host, and a coding harness.</p>
+    <div class="card">
+      <svg class="dfd" viewBox="0 0 1160 640" role="img" aria-label="Level 0 context diagram">
+        <!-- flows -->
+        <path class="flow" marker-end="url(#ah)" marker-start="url(#ah)" d="M230,160 C330,160 380,290 430,298"/>
+        <path class="flow" marker-end="url(#ah)" marker-start="url(#ah)" d="M230,475 C340,475 380,347 430,340"/>
+        <path class="flow" marker-end="url(#ah)" marker-start="url(#ah)" d="M580,100 L580,258"/>
+        <path class="flow" marker-end="url(#ah)" marker-start="url(#ah)" d="M930,160 C830,160 780,290 730,298"/>
+        <path class="flow" marker-end="url(#ah)" marker-start="url(#ah)" d="M930,475 C820,475 780,347 730,340"/>
+
+        <text class="lbl" text-anchor="middle" x="298" y="150">tickets · review · merge</text>
+        <text class="lbl" text-anchor="middle" x="300" y="502">MCP tools</text>
+        <text class="lbl" text-anchor="start" x="592" y="182">poll · claim · transition · lease</text>
+        <text class="lbl" text-anchor="middle" x="836" y="150">branch · push · PR</text>
+        <text class="lbl" text-anchor="middle" x="840" y="502">agent run (JSON ⇄ NDJSON)</text>
+
+        <!-- center system -->
+        <g>
+          <rect class="box-proc" x="430" y="260" width="300" height="110" rx="16"/>
+          <text class="ntitle" text-anchor="middle" x="580" y="302">Decentralized AI</text>
+          <text class="ntitle" text-anchor="middle" x="580" y="322">Development Fleet</text>
+          <text class="nsub" text-anchor="middle" x="580" y="344">Forge App + Worker Daemon</text>
+        </g>
+        <!-- entity: human -->
+        <g>
+          <rect class="box-human" x="40" y="125" width="190" height="80" rx="10"/>
+          <text class="ntitle" text-anchor="middle" x="135" y="160">Human</text>
+          <text class="nsub" text-anchor="middle" x="135" y="180">Developer · Reviewer</text>
+        </g>
+        <!-- entity: local agent -->
+        <g>
+          <rect class="box-ent" x="40" y="435" width="190" height="80" rx="10"/>
+          <text class="ntitle" text-anchor="middle" x="135" y="470">Local Coding Agent</text>
+          <text class="nsub" text-anchor="middle" x="135" y="490">Cursor / Claude Code</text>
+        </g>
+        <!-- store: jira -->
+        <g>
+          <rect class="box-store" x="470" y="30" width="220" height="70" rx="10"/>
+          <text class="ntitle" text-anchor="middle" x="580" y="60">Jira Board (FLT)</text>
+          <text class="nsub" text-anchor="middle" x="580" y="80">the queue</text>
+        </g>
+        <!-- store: bitbucket -->
+        <g>
+          <rect class="box-store" x="930" y="125" width="190" height="80" rx="10"/>
+          <text class="ntitle" text-anchor="middle" x="1025" y="160">Bitbucket Cloud</text>
+          <text class="nsub" text-anchor="middle" x="1025" y="180">repo · branches · PRs</text>
+        </g>
+        <!-- harness -->
+        <g>
+          <rect class="box-harness" x="930" y="435" width="190" height="80" rx="10"/>
+          <text class="ntitle" text-anchor="middle" x="1025" y="470">GitHub Copilot</text>
+          <text class="nsub" text-anchor="middle" x="1025" y="490">Copilot CLI (headless)</text>
+        </g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ LEVEL 1 ============ -->
+  <section>
+    <h2><span class="n">1</span>Level 1 DFD — processes, stores and flows</h2>
+    <p class="lead">The fleet opens up into two halves: a thin <strong>Forge App</strong> (triage, panel, reaper, MCP) and the
+      <strong>Worker Daemon</strong> (poll → claim → execute → report). The Jira board sits in the centre as the single
+      source of truth; workers talk to it directly with a bot token — Forge never proxies worker traffic.
+      <br><span style="color:var(--ink3);font-size:13px">Interactive — hover a node to trace its flows, click a node or an arrow to pin what it reads and writes, or step through the ticket lifecycle.</span></p>
+    <div class="card">
+      <div class="dfd-toolbar">
+        <span class="dfd-hint">Hover a node to trace its flows · hover an arrow for its payload · click to inspect</span>
+        <button class="dfd-btn" id="l1Trace">▶ Trace a ticket</button>
+        <button class="dfd-btn" id="l1Stop" hidden>✕ Stop</button>
+      </div>
+
+      <svg class="dfd" id="l1" viewBox="0 0 1460 1090" role="img"
+           aria-label="Level 1 data flow diagram — interactive">
+
+        <!-- ============ LAYER 1: flows (under everything) ============ -->
+        <g class="flows">
+          <path class="flow" data-flow="f-human-rovo" data-from="human" data-to="rovo"
+            data-label="rough ticket" data-payload="A rough description the Steward refines into a build-ready spec."
+            marker-end="url(#ah)" d="M190,100 L250,112"/>
+          <path class="flow" data-flow="f-human-panel" data-from="human" data-to="panel"
+            data-label="view · dispatch · abort" data-payload="Human reads worker, lease and PR state, then dispatches or aborts a run."
+            marker-end="url(#ah)" d="M190,132 L250,218"/>
+          <path class="flow" data-flow="f-human-jira" data-from="human" data-to="jira"
+            data-label="create ticket (Backlog) ⇄ Finish → Done" data-payload="A human creates tickets; only a human transitions In Review → Done."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M100,70 L100,30 L690,30 L690,80"/>
+          <path class="flow" data-flow="f-rovo-jira" data-from="rovo" data-to="jira"
+            data-label="spec → Ready for Build" data-payload="Steward writes the refined spec and moves the ticket to Ready for Build."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M460,135 L560,135"/>
+          <path class="flow" data-flow="f-panel-jira" data-from="panel" data-to="jira"
+            data-label="dispatch · abort" data-payload="Panel sets fleet-ready or requeues on a human action."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M460,235 L560,235"/>
+          <path class="flow" data-flow="f-reaper-jira" data-from="reaper" data-to="jira"
+            data-label="requeue stale lease" data-payload="Reaper transitions In Build → Ready for Build when a lease is older than 15 minutes."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M460,335 L560,335"/>
+          <path class="flow" data-flow="f-webtrigger-jira" data-from="webtrigger" data-to="jira"
+            data-label="MCP verbs" data-payload="MCP tools read board state and repair claims via Jira REST."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M460,435 L560,435"/>
+          <path class="flow" data-flow="f-agent-webtrigger" data-from="agent" data-to="webtrigger"
+            data-label="MCP streamable-HTTP · bearer" data-payload="A local coding agent calls the MCP server over HTTP using a static bearer token."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M190,875 L200,875 L200,435 L250,435"/>
+          <path class="flow" data-flow="f-webtrigger-kv" data-from="webtrigger" data-to="kv"
+            data-label="session / rate" data-payload="Forge KV holds MCP session and rate-limit state."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M355,475 L355,495"/>
+          <path class="flow" data-flow="f-daemon-jira" data-from="daemon" data-to="jira"
+            data-label="poll · claim (CAS) · verify · snapshot · lease · report · transitions"
+            data-payload="Every daemon polls the same JQL and writes Jira directly with the bot token. Claim is a compare-and-swap status transition, so N daemons race and exactly one wins. No Forge proxy."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M900,310 L820,310"/>
+          <path class="flow" data-flow="f-daemon-bitbucket" data-from="daemon" data-to="bitbucket"
+            data-label="branch · push" data-payload="Worker resets main, branches FLT-<key>-<slug> and pushes to Bitbucket."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M1200,150 L1250,150"/>
+          <path class="flow" data-flow="f-daemon-harness" data-from="daemon" data-to="harness"
+            data-label="adapter ⇄ NDJSON" data-payload="Worker invokes the harness through a thin adapter (JSON in, NDJSON out)."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M1200,300 L1250,300"/>
+          <path class="flow" data-flow="f-daemon-workspace" data-from="daemon" data-to="workspace"
+            data-label="clone · run · keep" data-payload="One persistent clone per worker; one run at a time; kept after the run for debugging."
+            marker-end="url(#ah)" marker-start="url(#ah)" d="M1200,450 L1250,450"/>
+          <path class="flow" data-flow="f-human-bitbucket" data-from="human" data-to="bitbucket"
+            data-label="merge PR (human only) → then Finish → Done" data-payload="Only a human merges the pull request — the fleet never merges."
+            marker-end="url(#ah)" d="M20,115 L8,115 L8,1056 L1452,1056 L1452,150 L1440,150"/>
+
+          <!-- ===== concurrency inset: N daemons race for one ticket ===== -->
+          <rect class="box-inset" x="640" y="720" width="540" height="282" rx="14"/>
+          <path class="flow lose" data-flow="f-ins-w1" data-from="w1" data-to="cas"
+            data-label="claim → 400" data-payload="worker-01 loses the race: the source status is no longer Ready for Build, so the transition is rejected."
+            marker-end="url(#ahr)" d="M788,818 L980,872"/>
+          <path class="flow win" data-flow="f-ins-w2" data-from="w2" data-to="cas"
+            data-label="claim → In Build ✓" data-payload="worker-02 wins: its Ready for Build → In Build transition commits and it sets Fleet Worker + Fleet Lease."
+            marker-end="url(#ahg)" d="M788,876 L980,890"/>
+          <path class="flow lose" data-flow="f-ins-w3" data-from="w3" data-to="cas"
+            data-label="claim → 400" data-payload="worker-03 loses too; it moves on and retries on the next poll."
+            marker-end="url(#ahr)" d="M788,934 L980,908"/>
+        </g>
+
+        <!-- ============ LAYER 2: nodes (boxes) ============ -->
+        <g class="nodes">
+          <!-- Forge App group -->
+          <g>
+            <rect class="box-group" x="230" y="50" width="250" height="530" rx="14"/>
+            <text class="lblb" text-anchor="middle" x="355" y="74">Forge App</text>
+          </g>
+          <g class="node" data-node="rovo" data-type="process" data-name="Rovo Agent — &ldquo;Fleet Steward&rdquo;">
+            <rect class="box-proc" x="250" y="95" width="210" height="80" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="355" y="130">Rovo Agent</text>
+            <text class="nsub" text-anchor="middle" x="355" y="150">"Fleet Steward"</text>
+          </g>
+          <g class="node" data-node="panel" data-type="process" data-name="Issue Panel">
+            <rect class="box-proc" x="250" y="195" width="210" height="80" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="355" y="230">Issue Panel</text>
+            <text class="nsub" text-anchor="middle" x="355" y="250">read-mostly UI</text>
+          </g>
+          <g class="node" data-node="reaper" data-type="process" data-name="Scheduled Reaper">
+            <rect class="box-proc" x="250" y="295" width="210" height="80" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="355" y="330">Scheduled Reaper</text>
+            <text class="nsub" text-anchor="middle" x="355" y="350">every 10 min</text>
+          </g>
+          <g class="node" data-node="webtrigger" data-type="process" data-name="Webtrigger (MCP server)">
+            <rect class="box-proc" x="250" y="395" width="210" height="80" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="355" y="430">Webtrigger</text>
+            <text class="nsub" text-anchor="middle" x="355" y="450">MCP server</text>
+          </g>
+          <g class="node" data-node="kv" data-type="store" data-name="Forge KV">
+            <rect class="box-store" x="250" y="495" width="210" height="65" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="355" y="523">Forge KV</text>
+            <text class="nsub" text-anchor="middle" x="355" y="543">session · rate state</text>
+          </g>
+
+          <!-- Jira store -->
+          <g class="node" data-node="jira" data-type="store" data-name="Jira Board — FLT (the queue)">
+            <rect class="box-store" x="560" y="80" width="260" height="460" rx="14"/>
+            <text class="ntitle" text-anchor="middle" x="690" y="108">Jira Board — FLT</text>
+            <text class="nsub" text-anchor="middle" x="690" y="128">the queue · single source of truth</text>
+            <line x1="580" y1="142" x2="800" y2="142" stroke="#e8c98a"/>
+            <text class="lbl" text-anchor="middle" x="690" y="166">Backlog → Triaged → Ready for Build</text>
+            <text class="lbl" text-anchor="middle" x="690" y="186">→ In Build → In Review → Done · Failed</text>
+            <text class="ntitle" text-anchor="middle" x="690" y="226" font-size="12">Fields</text>
+            <text class="lbl" text-anchor="middle" x="690" y="248">Fleet Worker · Fleet Lease</text>
+            <text class="lbl" text-anchor="middle" x="690" y="268">Fleet Branch · Fleet PR</text>
+            <line x1="580" y1="290" x2="800" y2="290" stroke="#e8c98a"/>
+            <text class="lbl" text-anchor="middle" x="690" y="316">One project · one board · one repo</text>
+            <text class="nsub" text-anchor="middle" x="690" y="342">Claim IS the status transition (CAS)</text>
+            <text class="nsub" text-anchor="middle" x="690" y="362">Lease refresh every 5 min · stale @ 15 min</text>
+            <text class="nsub" text-anchor="middle" x="690" y="382">Human merges — fleet never merges</text>
+          </g>
+
+          <!-- Worker Daemon group -->
+          <g class="node" data-node="daemon" data-type="group" data-name="Worker Daemons (npx fleet-worker) × N">
+            <rect class="box-group" x="900" y="50" width="300" height="650" rx="14"/>
+            <text class="lblb" text-anchor="middle" x="1050" y="74">Worker Daemons (npx fleet-worker) × N</text>
+            <text class="nsmall" text-anchor="middle" x="1050" y="92">harness-blind · one run per worker · poll 30–60s + jitter</text>
+            <g><rect class="box-step" x="920" y="110" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="138">1 · Poll — JQL: Ready for Build</text></g>
+            <g><rect class="box-step" x="920" y="166" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="194">2 · Claim — CAS transition + Worker/Lease</text></g>
+            <g><rect class="box-step" x="920" y="222" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="250">3 · Verify — Fleet Worker == self</text></g>
+            <g><rect class="box-step" x="920" y="278" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="306">4 · Snapshot — summary / desc / AC</text></g>
+            <g><rect class="box-step" x="920" y="334" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="362">5 · Git — reset main, branch, push</text></g>
+            <g><rect class="box-step" x="920" y="390" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="418">6 · Run — adapter → harness</text></g>
+            <g><rect class="box-step" x="920" y="446" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="474">7 · Heartbeat — lease PUT 5 min + comments</text></g>
+            <g><rect class="box-step" x="920" y="502" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="530">8 · Report — create PR, set Branch/PR</text></g>
+            <g><rect class="box-step" x="920" y="558" width="260" height="46" rx="9"/>
+               <text class="lbl" x="934" y="586">9 · Transition — In Build → In Review</text></g>
+          </g>
+
+          <!-- Right column -->
+          <g class="node" data-node="bitbucket" data-type="store" data-name="Bitbucket Cloud">
+            <rect class="box-store" x="1250" y="100" width="190" height="100" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="1345" y="140">Bitbucket Cloud</text>
+            <text class="nsub" text-anchor="middle" x="1345" y="160">branches · PRs</text>
+          </g>
+          <g class="node" data-node="harness" data-type="harness" data-name="GitHub Copilot (Copilot CLI)">
+            <rect class="box-harness" x="1250" y="250" width="190" height="100" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="1345" y="290">GitHub Copilot</text>
+            <text class="nsub" text-anchor="middle" x="1345" y="310">copilot -p (headless)</text>
+          </g>
+          <g class="node" data-node="workspace" data-type="store" data-name="Worker Workspace">
+            <rect class="box-store" x="1250" y="400" width="190" height="100" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="1345" y="440">Worker Workspace</text>
+            <text class="nsub" text-anchor="middle" x="1345" y="460">persistent clone</text>
+          </g>
+
+          <!-- Entities -->
+          <g class="node" data-node="human" data-type="entity" data-name="Human (Developer · Reviewer)">
+            <rect class="box-human" x="20" y="70" width="170" height="90" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="105" y="108">Human</text>
+            <text class="nsub" text-anchor="middle" x="105" y="128">Developer · Reviewer</text>
+          </g>
+          <g class="node" data-node="agent" data-type="entity" data-name="Local Coding Agent (Cursor / Claude Code)">
+            <rect class="box-ent" x="20" y="830" width="170" height="90" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="105" y="868">Local Coding Agent</text>
+            <text class="nsub" text-anchor="middle" x="105" y="888">Cursor / Claude Code</text>
+          </g>
+
+          <!-- concurrency inset nodes -->
+          <g class="node" data-node="w1" data-type="process" data-name="worker-01 (daemon)">
+            <rect class="box-step" x="670" y="798" width="118" height="40" rx="9"/>
+            <text class="ntitle" text-anchor="middle" x="729" y="823" font-size="12">worker-01</text>
+          </g>
+          <g class="node" data-node="w2" data-type="process" data-name="worker-02 (daemon)">
+            <rect class="box-step" x="670" y="856" width="118" height="40" rx="9"/>
+            <text class="ntitle" text-anchor="middle" x="729" y="881" font-size="12">worker-02</text>
+          </g>
+          <g class="node" data-node="w3" data-type="process" data-name="worker-03 (daemon)">
+            <rect class="box-step" x="670" y="914" width="118" height="40" rx="9"/>
+            <text class="ntitle" text-anchor="middle" x="729" y="939" font-size="12">worker-03</text>
+          </g>
+          <g class="node" data-node="cas" data-type="store" data-name="Jira — In Build transition (CAS)">
+            <rect class="box-store" x="980" y="845" width="180" height="92" rx="10"/>
+            <text class="ntitle" text-anchor="middle" x="1070" y="880" font-size="12.5">Jira — CAS</text>
+            <text class="nsub" text-anchor="middle" x="1070" y="900">Ready for Build</text>
+            <text class="nsub" text-anchor="middle" x="1070" y="916">→ In Build</text>
+          </g>
+        </g>
+
+        <!-- ============ LAYER 3: flow labels (ON TOP, with white halo) ============ -->
+        <g class="flowlabels">
+          <text class="lbl" text-anchor="middle" x="226" y="92">rough ticket</text>
+          <text class="lbl" text-anchor="middle" x="238" y="176">view · dispatch · abort</text>
+          <text class="lbl" text-anchor="middle" x="400" y="22">create ticket (Backlog)  ⇄  Finish → Done</text>
+          <text class="lbl" text-anchor="middle" x="510" y="126">spec → Ready for Build</text>
+          <text class="lbl" text-anchor="middle" x="510" y="226">dispatch · abort</text>
+          <text class="lbl" text-anchor="middle" x="510" y="326">requeue stale lease</text>
+          <text class="lbl" text-anchor="middle" x="510" y="426">MCP verbs</text>
+          <text class="lbl" text-anchor="start" x="206" y="896">MCP streamable-HTTP · bearer</text>
+          <text class="lbl" text-anchor="start" x="474" y="492">session / rate</text>
+          <text class="lbl" text-anchor="middle" x="860" y="286">poll · claim (CAS) · verify</text>
+          <text class="lbl" text-anchor="middle" x="860" y="302">snapshot · lease · report · transitions</text>
+          <text class="lbl" text-anchor="middle" x="860" y="324" font-style="italic">no Forge proxy</text>
+          <text class="lbl" text-anchor="middle" x="1224" y="140">branch · push</text>
+          <text class="lbl" text-anchor="middle" x="1226" y="290">adapter ⇄ NDJSON</text>
+          <text class="lbl" text-anchor="middle" x="1224" y="440">clone · run · keep</text>
+          <text class="lbl" text-anchor="middle" x="731" y="1040">merge PR (human only)  →  then Finish → Done</text>
+
+          <!-- concurrency inset labels -->
+          <text class="lblb" text-anchor="middle" x="910" y="750">Concurrency — N daemons, one queue</text>
+          <text class="nsmall" text-anchor="middle" x="910" y="768">all poll the same JQL at once</text>
+          <text class="lbl" text-anchor="middle" x="884" y="810">claim → 400</text>
+          <text class="lbl" text-anchor="middle" x="880" y="866" style="fill:#047857;font-weight:700">claim → In Build ✓</text>
+          <text class="lbl" text-anchor="middle" x="892" y="952">claim → 400</text>
+          <text class="lbl" text-anchor="middle" x="910" y="982">Jira serialises the transition; one wins, the rest get 400 and retry (+ jitter).</text>
+        </g>
+      </svg>
+
+      <div class="dfd-inspect" id="l1Inspect">
+        <span class="dir">Hover a node to trace its flows. Click a node or an arrow to pin what it reads and writes — or press
+        &ldquo;Trace a ticket&rdquo; to walk the lifecycle.</span>
+      </div>
+    </div>
+    <div class="callout">
+      <strong>Read the thumb rule:</strong> everything that changes ticket state (claim, requeue, PR report, finish) is a
+      Jira REST write. The Forge App never sits in the worker's path — it only shapes tickets (Rovo), repairs stale
+      leases (reaper), and exposes the board to humans/agents (panel + MCP).
+    </div>
+  </section>
+
+  <!-- ============ WORKER RUN PROTOCOL ============ -->
+  <section>
+    <h2><span class="n">2</span>Worker run protocol (steps 1–9)</h2>
+    <p class="lead">The exact ordering a single worker follows for one ticket, with what it reads from and writes to each
+      store. This is the "every step" view of the Level-1 worker process.</p>
+    <div class="seq">
+      <div class="step">
+        <div class="num">1</div>
+        <div class="stepbody">
+          <h3>Poll</h3>
+          <p>Loop every 30–60s. Runs JQL <code>project=FLT AND status="Ready for Build" ORDER BY priority DESC, created ASC</code>.</p>
+          <div class="io"><span class="chip r">reads Jira</span><span class="chip d">no inbound network</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <div class="stepbody">
+          <h3>Claim — atomic via transition CAS</h3>
+          <p>Transitions <code>Ready for Build → In Build</code> and sets <code>Fleet Worker</code> + <code>Fleet Lease</code> in the
+            same request. Jira serialises the transition; the source-status precondition is the compare-and-swap. Losers get HTTP 400 and move on.</p>
+          <div class="io"><span class="chip w">writes Jira (transition + fields)</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <div class="stepbody">
+          <h3>Verify</h3>
+          <p>Re-reads the issue and confirms <code>Fleet Worker</code> equals its own ID before doing any work; otherwise abandons.</p>
+          <div class="io"><span class="chip r">reads Jira</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">4</div>
+        <div class="stepbody">
+          <h3>Snapshot context</h3>
+          <p>Captures summary, description and acceptance criteria at claim time (timestamped into the PR body). Later live edits never affect a running agent.</p>
+          <div class="io"><span class="chip r">reads Jira</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">5</div>
+        <div class="stepbody">
+          <h3>Prepare git</h3>
+          <p><code>git reset --hard origin/main</code> in the persistent clone, branch <code>FLT-&lt;key&gt;-&lt;slug&gt;</code>.</p>
+          <div class="io"><span class="chip s">reads Bitbucket (main)</span><span class="chip s">writes Bitbucket (branch)</span><span class="chip d">workspace reused</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">6</div>
+        <div class="stepbody">
+          <h3>Run adapter → harness</h3>
+          <p>Adapter receives JSON on stdin/env and invokes the harness (GitHub Copilot CLI: <code>copilot -p</code> in non-interactive/Autopilot mode).
+            Daemon stays harness-blind; adapters are thin translators.</p>
+          <div class="io"><span class="chip h">harness runs in workspace</span><span class="chip r">JSON in → NDJSON out</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">7</div>
+        <div class="stepbody">
+          <h3>Heartbeat + milestones</h3>
+          <p>Refreshes <code>Fleet Lease</code> every 5 min; stale = older than 15 min. Posts milestone comments so the panel shows progress.</p>
+          <div class="io"><span class="chip w">writes Jira (lease + comments)</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">8</div>
+        <div class="stepbody">
+          <h3>Report PR</h3>
+          <p>Pushes the branch, opens PR <code>FLT-123: &lt;summary&gt;</code> with report body (changes, tests, AC checklist); sets <code>Fleet Branch</code> and <code>Fleet PR</code>.</p>
+          <div class="io"><span class="chip s">writes Bitbucket (PR)</span><span class="chip w">writes Jira (Branch/PR)</span></div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">9</div>
+        <div class="stepbody">
+          <h3>Transition to review</h3>
+          <p>Moves the ticket <code>In Build → In Review</code>. Human reviews and merges — the fleet never merges.</p>
+          <div class="io"><span class="chip w">writes Jira (transition)</span><span class="chip d">human-gated from here</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h2 style="margin-top:34px"><span class="n">2b</span>Adapter contract</h2>
+    <p class="lead">The one interface every harness must satisfy. The daemon is harness-agnostic; only the adapter changes.</p>
+    <div class="contract">
+      <pre><span class="c">// in (stdin / env JSON)</span>
+{
+  <span class="k">"ticket_key"</span>: <span class="v">"FLT-123"</span>,
+  <span class="k">"summary"</span>: <span class="v">"..."</span>,
+  <span class="k">"description"</span>: <span class="v">"..."</span>,
+  <span class="k">"acceptance_criteria"</span>: <span class="v">"..."</span>,
+  <span class="k">"repo_path"</span>: <span class="v">"/work/repo"</span>,
+  <span class="k">"base_branch"</span>: <span class="v">"main"</span>,
+  <span class="k">"timeout_s"</span>: <span class="v">7200</span>
+}</pre>
+      <pre><span class="c">// out (NDJSON / JSON)</span>
+{
+  <span class="k">"status"</span>: <span class="v">"ok | failed"</span>,
+  <span class="k">"branch"</span>: <span class="v">"FLT-123-slug"</span>,
+  <span class="k">"commit_sha"</span>: <span class="v">"abc1234"</span>,
+  <span class="k">"pr_url"</span>: <span class="v">"https://..."</span>,
+  <span class="k">"summary"</span>: <span class="v">"..."</span>,
+  <span class="k">"tests"</span>: { <span class="k">"ran"</span>: <span class="v">12</span>, <span class="k">"passed"</span>: <span class="v">12</span> },
+  <span class="k">"log_path"</span>: <span class="v">"/work/run.log"</span>
+}</pre>
+    </div>
+  </section>
+
+  <!-- ============ STATE MACHINE ============ -->
+  <section>
+    <h2><span class="n">3</span>Ticket state machine (the queue's data model)</h2>
+    <p class="lead">Every flow above ultimately drives this machine. Claim is a normal transition, so Jira's own
+      serialisation gives the fleet its concurrency guarantee for free.</p>
+    <div class="card">
+      <svg class="dfd" viewBox="0 0 1440 380" role="img" aria-label="Ticket state machine">
+        <!-- forward chain arrows -->
+        <path class="flow" marker-end="url(#ah)" d="M180,102 L240,102"/>
+        <path class="flow" marker-end="url(#ah)" d="M390,102 L450,102"/>
+        <path class="flow" marker-end="url(#ah)" d="M600,102 L660,102"/>
+        <path class="flow" marker-end="url(#ah)" d="M810,102 L870,102"/>
+        <path class="flow" marker-end="url(#ah)" d="M1020,102 L1080,102"/>
+        <!-- requeue back (In Build -> Ready for Build) -->
+        <path class="flow" marker-end="url(#ah)" d="M735,70 L735,30 L525,30 L525,70"/>
+        <!-- reject (In Build -> Failed) -->
+        <path class="flow" marker-end="url(#ahr)" d="M735,134 L735,220"/>
+        <!-- failed -> ready (dashed) -->
+        <path class="flow dash" marker-end="url(#ah)" d="M660,252 L525,252 L525,134"/>
+
+        <text class="lbl" text-anchor="middle" x="210" y="94">triage (Rovo)</text>
+        <text class="lbl" text-anchor="middle" x="420" y="94">markFleetReady</text>
+        <text class="lbl" text-anchor="middle" x="630" y="94">Claim (CAS)</text>
+        <text class="lbl" text-anchor="middle" x="840" y="94">Report PR</text>
+        <text class="lbl" text-anchor="middle" x="1050" y="94">Finish (human)</text>
+        <text class="lbl" text-anchor="middle" x="630" y="24">Requeue — reaper · timeout · reset_claim</text>
+        <text class="lbl" text-anchor="start" x="746" y="182">Reject — garbage PR · 2nd failure</text>
+        <text class="lbl" text-anchor="middle" x="360" y="266">human re-ready</text>
+
+        <!-- nodes -->
+        <g><rect class="box-proc" x="30" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="105" y="107">Backlog</text></g>
+        <g><rect class="box-proc" x="240" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="315" y="107">Triaged</text></g>
+        <g><rect class="box-proc" x="450" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="525" y="100" font-size="13">Ready for Build</text>
+           <text class="nsub" text-anchor="middle" x="525" y="118">claimable</text></g>
+        <g><rect class="box-proc" x="660" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="735" y="107">In Build</text></g>
+        <g><rect class="box-proc" x="870" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="945" y="107">In Review</text></g>
+        <g><rect class="box-harness" x="1080" y="70" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="1155" y="107">Done</text></g>
+        <g><rect class="box-fail" x="660" y="220" width="150" height="64" rx="10"/>
+           <text class="ntitle" text-anchor="middle" x="735" y="257">Failed</text></g>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ============ FAILURE / RECOVERY ============ -->
+  <section>
+    <h2><span class="n">4</span>Failure &amp; recovery flows</h2>
+    <p class="lead">Every failure path resolves into a Jira write, so the board self-heals and no orphan state lives
+      outside Jira.</p>
+    <div class="grid">
+      <div class="fcard calm">
+        <h3><strong>Crash mid-task</strong> → reaper requeues</h3>
+        <p>Heartbeat stops → lease goes stale (&gt;15 min) → scheduled reaper transitions <code>In Build → Ready for Build</code>, clears Worker/Lease, comments "requeued after lease expiry".</p>
+      </div>
+      <div class="fcard calm">
+        <h3><strong>Duplicate claim</strong> → CAS + verify</h3>
+        <p>Transition CAS rejects the loser (HTTP 400). Winner re-reads the issue and confirms <code>Fleet Worker</code> is its own ID before starting.</p>
+      </div>
+      <div class="fcard calm">
+        <h3><strong>Run over 2h</strong> → timeout</h3>
+        <p>Worker kills the harness, comments the log tail, then requeues (or fails once the retry budget of 1 is spent).</p>
+      </div>
+      <div class="fcard">
+        <h3>Garbage PR → human rejects</h3>
+        <p>Human closes/requests changes and moves the ticket to <code>Ready for Build</code> or <code>Failed</code> with a comment. No auto-merge, no auto-repair loop.</p>
+      </div>
+      <div class="fcard calm">
+        <h3>Ticket edited mid-run → snapshot</h3>
+        <p>Live edits never touch the running agent; the PR body carries the claim-time snapshot and the human reconciles at review.</p>
+      </div>
+      <div class="fcard">
+        <h3>Stale / wrong claim → reset_claim</h3>
+        <p>An MCP caller or the panel fires <code>reset_claim</code> — same requeue transition as the reaper, clearing Worker/Lease so a human or agent can abort.</p>
+      </div>
+    </div>
+
+    <div class="callout" style="background:#fff7ed;border-color:#fed7aa;color:#7c2d12">
+      <strong>Security note (from the doc's open decisions):</strong> ticket text is untrusted input into agent runs.
+      The design wraps it in hard delimiters with an untrusted-data preamble, sandboxes the run (tool allowlist, filtered
+      env with no tokens, reset workspace), and relies on the human PR review as the real boundary.
+    </div>
+  </section>
+</div>
+
+<script>
+/* Progressive enhancement for the Level-1 diagram: hover-to-trace, click-to-inspect,
+   arrow tooltips, and a "trace a ticket" stepper. The static SVG still renders if this fails. */
+(function () {
+  var svg = document.getElementById('l1');
+  if (!svg) return;
+  var NS = svg.namespaceURI;
+  var insp = document.getElementById('l1Inspect');
+  var tip = document.createElement('div');
+  tip.className = 'dfd-tip';
+  tip.style.display = 'none';
+  document.body.appendChild(tip);
+
+  var flowEls = [].slice.call(svg.querySelectorAll('[data-flow]'));
+  var nodeEls = [].slice.call(svg.querySelectorAll('[data-node]'));
+  var byId = {}, byFlow = {};
+  nodeEls.forEach(function (n) { byId[n.getAttribute('data-node')] = n; });
+  flowEls.forEach(function (f) { byFlow[f.getAttribute('data-flow')] = f; });
+
+  var TYPE_LABEL = { entity: 'External entity', process: 'Process', store: 'Data store', harness: 'Compute', group: 'Process group' };
+  var TYPE_COLOR = { entity: '#6366f1', process: '#0284c7', store: '#d97706', harness: '#059669', group: '#7c3aed' };
+
+  /* wide invisible hit paths on a top layer so thin arrows are easy to hover */
+  var hits = document.createElementNS(NS, 'g');
+  hits.setAttribute('class', 'hits');
+  flowEls.forEach(function (f) {
+    var h = document.createElementNS(NS, 'path');
+    h.setAttribute('d', f.getAttribute('d'));
+    h.setAttribute('data-hit', f.getAttribute('data-flow'));
+    hits.appendChild(h);
+  });
+  svg.appendChild(hits);
+  var hitEls = [].slice.call(hits.childNodes);
+
+  var pinned = null, traceIdx = -1, tracing = false;
+  var btnTrace = document.getElementById('l1Trace');
+  var btnStop = document.getElementById('l1Stop');
+
+  function clearHL() {
+    flowEls.forEach(function (f) { f.classList.remove('is-on', 'is-dim'); });
+    nodeEls.forEach(function (n) { n.classList.remove('is-active', 'is-dim'); });
+  }
+  function highlightNode(id) {
+    var keep = {};
+    flowEls.forEach(function (f) {
+      var touch = f.getAttribute('data-from') === id || f.getAttribute('data-to') === id;
+      if (touch) keep[f.getAttribute('data-flow')] = 1;
+      f.classList.toggle('is-on', touch);
+    });
+    flowEls.forEach(function (f) { f.classList.toggle('is-dim', !keep[f.getAttribute('data-flow')]); });
+    nodeEls.forEach(function (n) {
+      var act = n.getAttribute('data-node') === id;
+      n.classList.toggle('is-active', act);
+      n.classList.toggle('is-dim', !act);
+    });
+  }
+  function highlightFlow(id) {
+    var f = byFlow[id];
+    if (!f) return;
+    flowEls.forEach(function (x) {
+      x.classList.toggle('is-on', x === f);
+      x.classList.toggle('is-dim', x !== f);
+    });
+    var ends = {};
+    ends[f.getAttribute('data-from')] = 1;
+    ends[f.getAttribute('data-to')] = 1;
+    nodeEls.forEach(function (n) {
+      var e = !!ends[n.getAttribute('data-node')];
+      n.classList.toggle('is-active', e);
+      n.classList.toggle('is-dim', !e);
+    });
+  }
+
+  function flowLabel(f) { return f.getAttribute('data-label'); }
+  function flowPayload(f) { return f.getAttribute('data-payload'); }
+  function nameOf(id) { return byId[id] ? byId[id].getAttribute('data-name') : id; }
+
+  function typeTag(type) {
+    var c = TYPE_COLOR[type] || '#64748b';
+    return '<span class="tag" style="background:' + c + '1f;color:' + c + '">' + (TYPE_LABEL[type] || type) + '</span>';
+  }
+  function inspectNode(id) {
+    var n = byId[id];
+    if (!n) return;
+    var list = flowEls.filter(function (f) {
+      return f.getAttribute('data-from') === id || f.getAttribute('data-to') === id;
+    });
+    var h = '<h4>' + n.getAttribute('data-name') + typeTag(n.getAttribute('data-type')) + '</h4>';
+    if (!list.length) {
+      h += '<p class="dir">No direct flows.</p>';
+    } else {
+      h += '<ul>';
+      list.forEach(function (f) {
+        var out = f.getAttribute('data-from') === id;
+        h += '<li><span class="dir">' + (out ? '→ out' : '← in') + '</span> <b>' + flowLabel(f) +
+             '</b><br><span class="dir">' + flowPayload(f) + '</span></li>';
+      });
+      h += '</ul>';
+    }
+    insp.innerHTML = h;
+  }
+  function inspectFlow(id) {
+    var f = byFlow[id];
+    if (!f) return;
+    insp.innerHTML = '<h4>' + flowLabel(f) + '</h4>' +
+      '<p class="dir">' + nameOf(f.getAttribute('data-from')) + ' &nbsp;→&nbsp; ' + nameOf(f.getAttribute('data-to')) + '</p>' +
+      '<p>' + flowPayload(f) + '</p>';
+  }
+  function resetInspect() {
+    insp.innerHTML = '<span class="dir">Hover a node to trace its flows. Click a node or an arrow to pin what it reads and writes — or press &ldquo;Trace a ticket&rdquo; to walk the lifecycle.</span>';
+  }
+
+  /* ---- node hover / click ---- */
+  nodeEls.forEach(function (n) {
+    var id = n.getAttribute('data-node');
+    n.classList.add('node-hit');
+    n.addEventListener('mouseenter', function () { if (pinned || tracing) return; highlightNode(id); });
+    n.addEventListener('mouseleave', function () { if (pinned || tracing) return; clearHL(); });
+    n.addEventListener('click', function (e) {
+      e.stopPropagation();
+      tracing = false; setTraceUI(false);
+      if (pinned === id) { pinned = null; clearHL(); resetInspect(); }
+      else { pinned = id; highlightNode(id); inspectNode(id); }
+    });
+  });
+
+  /* ---- arrow hover / click ---- */
+  function showTip(x, y, title, body) {
+    tip.innerHTML = '<b>' + title + '</b><br>' + body;
+    tip.style.display = 'block';
+    tip.style.left = Math.min(x + 16, window.innerWidth - 340) + 'px';
+    tip.style.top = (y + 18) + 'px';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+
+  hitEls.forEach(function (h) {
+    var id = h.getAttribute('data-hit');
+    var f = byFlow[id];
+    if (!f) return;
+    h.addEventListener('mouseenter', function (e) {
+      if (tracing) return;
+      highlightFlow(id);
+      showTip(e.clientX, e.clientY, flowLabel(f), flowPayload(f));
+    });
+    h.addEventListener('mousemove', function (e) {
+      if (tracing) return;
+      tip.style.left = Math.min(e.clientX + 16, window.innerWidth - 340) + 'px';
+      tip.style.top = (e.clientY + 18) + 'px';
+    });
+    h.addEventListener('mouseleave', function () {
+      hideTip();
+      if (pinned || tracing) return;
+      clearHL();
+      resetInspect();
+    });
+    h.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pinned = null; tracing = false; setTraceUI(false);
+      highlightFlow(id);
+      inspectFlow(id);
+      hideTip();
+    });
+  });
+
+  svg.addEventListener('click', function () {
+    if (tracing) return;
+    pinned = null;
+    clearHL();
+    resetInspect();
+  });
+
+  /* ---- trace a ticket ---- */
+  var TRACE = [
+    ['f-human-jira', '1 · Create the ticket', 'A developer creates FLT-101 in Backlog with a rough description and no acceptance criteria.'],
+    ['f-human-rovo', '2 · Hand it to Rovo', 'The rough ticket goes to the Fleet Steward to be turned into a build-ready spec.'],
+    ['f-rovo-jira', '3 · Steward writes the spec', 'Refined summary, description and acceptance criteria; the ticket moves to Ready for Build.'],
+    ['f-daemon-jira', '4 · A worker claims it', 'Poll the JQL, claim via the CAS transition (Ready for Build → In Build), verify, snapshot, then heartbeat the lease.'],
+    ['f-daemon-workspace', '5 · Prepare the clone', 'Reset the persistent clone to origin/main and branch FLT-101-<slug>.'],
+    ['f-daemon-harness', '6 · Run the harness', 'The adapter invokes the GitHub Copilot CLI headless inside the workspace.'],
+    ['f-daemon-bitbucket', '7 · Push the branch', 'Commit and push the branch to Bitbucket.'],
+    ['f-daemon-jira', '8 · Report the PR', 'Open the PR, set Fleet Branch / Fleet PR, and transition In Build → In Review.'],
+    ['f-human-bitbucket', '9 · A human merges', 'The fleet never merges — a human reviews and merges the pull request.'],
+    ['f-human-jira', '10 · Finish → Done', 'The human transitions the ticket to Done.'],
+    ['f-reaper-jira', '⌁ If a run dies', 'The lease goes stale and the reaper requeues the ticket — the board self-heals, no orphan state outside Jira.']
+  ];
+  function setTraceUI(on) {
+    btnTrace.classList.toggle('on', on);
+    btnTrace.textContent = on ? '▸ Next step' : '▶ Trace a ticket';
+    btnStop.hidden = !on;
+  }
+  function applyTrace() {
+    var t = TRACE[traceIdx];
+    highlightFlow(t[0]);
+    var f = byFlow[t[0]];
+    insp.innerHTML = '<h4>' + t[1] +
+      '<span class="tag" style="background:#0f172a1a;color:#334155">Ticket lifecycle ' + (traceIdx + 1) + ' / ' + TRACE.length + '</span></h4>' +
+      '<p><b>' + flowLabel(f) + '</b></p>' +
+      '<p>' + t[2] + '</p>' +
+      '<p class="dir">Flow: ' + nameOf(f.getAttribute('data-from')) + ' → ' + nameOf(f.getAttribute('data-to')) + '</p>';
+  }
+  function stopTrace() {
+    traceIdx = -1; tracing = false; setTraceUI(false);
+    clearHL(); resetInspect();
+  }
+  btnTrace.addEventListener('click', function () {
+    if (!tracing) { tracing = true; traceIdx = 0; pinned = null; }
+    else { traceIdx += 1; }
+    if (traceIdx >= TRACE.length) { stopTrace(); return; }
+    setTraceUI(true);
+    clearHL();
+    applyTrace();
+  });
+  btnStop.addEventListener('click', stopTrace);
+
+  resetInspect();
+})();
+</script>
+</body>
+</html>
