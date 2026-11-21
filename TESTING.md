@@ -789,6 +789,12 @@ Stated plainly so you know what to trust:
   `In Review`. A second `createPullRequest` for the same branch reused the open
   PR instead of hitting Bitbucket's 409. The credential is a repository access
   token, which only works as `Bearer` — the previous Basic-only client 401'd.
+- **OpenCode adapter (`opencode`) verified live** against opencode v2.3.2 with the
+  free `opencode/beam-free` model: the adapter ran the real CLI on the JSON
+  contract (status `ok`, one file edited), and `npm run smoke:opencode` drove the
+  whole protocol — opencode fixed a seeded bug in a scratch repo, the repo's
+  tests went green, and the ticket reached `In Review` with a PR. A bad model
+  reports `failed` with opencode's own message instead of crashing.
 - Level 5 has **not** been run against a live Jira tenant — the live runs above
   used the in-process Jira mock for the board half. Nothing was registered or
   installed during development. The commands and the admin steps are the parts

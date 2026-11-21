@@ -22,7 +22,7 @@ and the flows in [`docs/grill/dfd-jira-ai-fleet.html`](../docs/grill/dfd-jira-ai
 |---|---|
 | Worker daemon (poll → claim → run → report) | implemented, tested |
 | Lease reaper (`reap`) | implemented, tested |
-| Adapters: `cmdc` (real), `copilot`, `kiro` (stub), `script` | implemented; `cmdc` proven by a live smoke test |
+| Adapters: `cmdc` (real), `opencode` (real), `copilot`, `kiro` (stub), `script` | implemented; `cmdc` and `opencode` proven by live smoke tests |
 | Fleet MCP server (`fleet-mcp`, stdio) | implemented, tested |
 | Forge app (issue panel, scheduled reaper, MCP webtrigger) | implemented, tested — see [`../forge-app`](../forge-app/README.md) |
 
@@ -130,6 +130,12 @@ boundary).
 - **`cmdc`** (default) — runs `cmdc -p --output-format json` in the workspace, prompt on
   stdin, and parses the NDJSON stream. Tune with `CMDC_PERMISSION_MODE` (default `yolo`;
   the fleet runs in an isolated workspace), `CMDC_MODEL`, `CMDC_EXTRA_ARGS`.
+- **`opencode`** — runs `opencode run --model <model> --format json --auto` with the prompt
+  on stdin and parses the NDJSON stream. Defaults to `opencode/beam-free` (the free model,
+  used for testing). Tune with `OPENCODE_MODEL`, `OPENCODE_AGENT`, `OPENCODE_BIN`,
+  `OPENCODE_EXTRA_ARGS`. It passes `--standalone` so a run gets its own server instead of
+  the user's background service, and `--archived` so scripted sessions stay out of the
+  session list; set `OPENCODE_STANDALONE=0` / `OPENCODE_ARCHIVED=0` to drop them.
 - **`copilot`** — the doc's harness (`copilot -p`); reference implementation, verify flags
   against your installed CLI. Tune with `COPILOT_ARGS`, `COPILOT_BIN`.
 - **`kiro`** — stub that reports "not implemented".
@@ -142,6 +148,7 @@ npm test            # unit + integration (mock Jira, real git) — no network
 npm run demo        # the whole loop offline: happy path, crash, retry budget
 npm run mock:fleet  # a live offline fleet to point the real CLI at
 npm run smoke:cmdc  # drives the real cmdc CLI through the whole protocol
+npm run smoke:opencode  # drives the real opencode CLI (opencode/beam-free) through the protocol
 ```
 
 The test suite runs the worker against an in-process Jira mock with real transition/CAS

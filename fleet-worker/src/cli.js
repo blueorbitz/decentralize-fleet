@@ -27,7 +27,7 @@ Core options:
   --remote <url>      Git remote to clone (env FLEET_REMOTE)
   --base-branch <b>   Base branch (env FLEET_BASE_BRANCH, default main)
   --worker-id <id>    Worker identity (env FLEET_WORKER_ID, default worker-<host>)
-  --adapter <name>    Harness adapter: cmdc | copilot | kiro | script (default cmdc)
+  --adapter <name>    Harness adapter: cmdc | opencode | copilot | kiro | script (default cmdc)
   --adapter-path <p>  Run an adapter script at an explicit path
   --once              Run a single poll cycle and exit
   --verbose           Verbose logging
