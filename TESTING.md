@@ -242,11 +242,90 @@ forge --version         # if missing: npm i -g @forge/cli
 forge whoami            # must be logged in
 ```
 
-You also need two API tokens from <https://id.atlassian.com/manage/api-tokens>:
+You need **two** API tokens, and the difference between them is the single most
+common reason step 5.3 fails:
 
-- an **admin** token, to create fields and the project;
-- a **Fleet Bot** token, for the worker and the app (can be the same account for
-  a first pass, but a separate bot user is what the design intends).
+| Token | Whose account | Why |
+|---|---|---|
+| **Admin token** | an account with *Administer Jira* | creates the custom fields and the project |
+| **Fleet Bot token** | a normal user in the project | what the worker and the app run as |
+
+A token does not grant permissions — it **inherits them from the account that
+created it**. A brand-new token from a non-admin account is still a non-admin
+token. That is what the error in 5.3 means.
+
+#### Creating the admin token
+
+1. Open <https://id.atlassian.com/manage/api-tokens>.
+2. **Check the account first.** The page belongs to whoever is signed in; if
+   that is not a Jira administrator, making a token here will not help.
+3. Choose **Create API token**, name it something obvious like
+   `fleet-provisioning`, and set an expiry you can live with (7 days is fine for
+   setup; you only use it once).
+4. **Copy the token now.** It is shown once and cannot be retrieved later.
+5. Put it in a variable for this session only — do not paste it into a file:
+
+```powershell
+$env:JIRA_ADMIN_TOKEN = 'paste-the-token-here'
+```
+
+#### Confirm the account is actually an admin
+
+Do this before running anything else. It takes two seconds and saves the exact
+failure you already hit:
+
+```powershell
+$pair = "YOU@EXAMPLE.COM:$env:JIRA_ADMIN_TOKEN"
+$auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+
+Invoke-RestMethod -Uri 'https://captain-sage.atlassian.net/rest/api/3/mypermissions?permissions=ADMINISTER' `
+  -Headers @{ Authorization = $auth } |
+  Select-Object -ExpandProperty permissions |
+  Select-Object -ExpandProperty ADMINISTER
+```
+
+`havePermission : True` means you are a Jira administrator. `False` means you
+are not, and no amount of re-creating the token will change that — see below.
+
+You can also check *who the token belongs to*, which catches the case of a token
+made under the wrong account:
+
+```powershell
+Invoke-RestMethod -Uri 'https://captain-sage.atlassian.net/rest/api/3/myself' `
+  -Headers @{ Authorization = $auth } |
+  Select-Object accountId, displayName, emailAddress
+```
+
+#### If `havePermission` is False
+
+You need an account that has the right. Two ways:
+
+**Use an existing admin account.** Ask whoever administers the site which
+account has it, sign in as that account, and create the token there. Usually the
+person who set up the site is the admin.
+
+**Or grant your account the permission.** A Jira admin does this once:
+
+> **Settings (gear)** > **System** > **Global permissions** > find **Administer
+> Jira** > **Add** > search your account > **Add**.
+
+On newer Jira Cloud the path may be **Administration** > **Global permissions**
+instead of **Settings** > **System**. If you cannot see Global permissions at
+all, you are not an admin and need someone who is.
+
+Note that *Jira administrator* is not the same right as *site administrator* — a
+site admin does not automatically have the *Administer Jira* global permission,
+and vice versa.
+
+#### You only need the admin token for step 5.3
+
+Once the fields and project exist, everything else uses the Fleet Bot token.
+Keep the admin token scoped narrowly and let it expire.
+
+Suggested Fleet Bot setup: create a normal user (e.g. `fleet-bot@yourdomain`),
+give it **Browse projects**, **Edit issues** and **Transition issues** on `FLT`
+only, and create a token from that account. No admin, no other projects — that
+is the least-privilege posture the design calls for.
 
 ### 5.2 Register the Forge app
 
@@ -266,9 +345,9 @@ forge register fleet-app
 
 ### 5.3 Provision the Jira side
 
-```powershell
-$env:JIRA_ADMIN_TOKEN = '<your admin API token>'
+Uses the **admin** token from 5.1.
 
+```powershell
 node scripts/provision.mjs `
   --jira https://YOUR-SITE.atlassian.net `
   --email YOU@EXAMPLE.COM `
@@ -279,17 +358,52 @@ node scripts/provision.mjs `
 
 Add `--dry-run` first if you want to see the plan without writing anything.
 
-**You should see:** it creates the five `Fleet *` fields and the `FLT` Kanban
-project, then prints a checklist. Existing fields are left alone, so re-running
-it is safe.
+**You should see** it name your account and confirm the permission, then create
+the five `Fleet *` fields and the `FLT` Kanban project, then print a checklist:
+
+```
+Fleet provisioning — project FLT
+
+Account: Your Name (you@example.com) — Jira administrator
+
+Fleet custom fields
+  + Fleet Worker   customfield_10101  (created)
+  ...
+```
+
+Existing fields are left alone, so re-running it is safe.
 
 To find your account id:
 
 ```powershell
-Invoke-RestMethod -Uri https://YOUR-SITE.atlassian.net/rest/api/3/myself `
-  -Headers @{ Authorization = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("YOU@EXAMPLE.COM:$env:JIRA_ADMIN_TOKEN")) } |
+$pair = "YOU@EXAMPLE.COM:$env:JIRA_ADMIN_TOKEN"
+$auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+
+Invoke-RestMethod -Uri 'https://YOUR-SITE.atlassian.net/rest/api/3/myself' `
+  -Headers @{ Authorization = $auth } |
   Select-Object -ExpandProperty accountId
 ```
+
+#### If it exits 3
+
+The script now checks the permission *before* writing anything, so an exit code
+of `3` means a permissions problem, not a bug:
+
+```
+Your Name (you@example.com) cannot administer Jira, so it cannot create custom fields.
+
+A Jira API token inherits its permissions from the account that made it.
+Making a new token will not help — the account itself needs the right.
+...
+```
+
+Go back to 5.1 and either create the token from an admin account, or have an
+admin grant your account *Administer Jira* under **Global permissions**.
+
+Before this preflight existed, the same situation surfaced as a raw, translated
+400 — `只有JIRA管理员权限的用户才能执行此操作` ("only users with Jira administrator
+permission can perform this operation"). That was Jira telling you the truth; it
+was the presentation that needed fixing.
 
 ### 5.4 Do the two manual steps
 
@@ -301,7 +415,25 @@ most common reason the fleet silently does nothing.
 Screens > the screen used by FLT > add `Fleet Worker`, `Fleet Lease`,
 `Fleet Branch`, `Fleet PR`, `Fleet Retry`.
 
-**b) Author the workflow with these exact transition names.** Both the worker
+**b) Transition screens (recommended, not required).** Adding the fields to the
+`Claim` transition screen makes the claim a single atomic request. It is not
+required: if the fields are missing, the worker detects Jira's
+`cannot be set. It is not on the appropriate screen` response and falls back to
+transition-then-update automatically.
+
+| Transition | Fields it benefits from |
+|---|---|
+| Claim | `Fleet Worker`, `Fleet Lease` |
+| Report PR | `Fleet Branch`, `Fleet PR` |
+
+The trade-off: with the screen configured, a crash mid-claim cannot leave a
+ticket `In Build` with no worker. Without it, the transition still happens first
+and the fields are written immediately after — if the process dies in between,
+the lease is empty, which the reaper treats as stale and requeues.
+
+`npm run verify:env` reports which mode a tenant is in.
+
+**c) Author the workflow with these exact transition names.** Both the worker
 and the app look transitions up *by name*, so a typo is a silent failure.
 
 | From | Transition | To |
@@ -318,10 +450,21 @@ and the app look transitions up *by name*, so a typo is a silent failure.
 `Finish` is human-only. `Failed -> Requeue` uses the same transition, so a
 failed run can be requeued from the panel.
 
-### 5.5 Point the app at the real field ids
+### 5.5 Configure the app (no Jira credentials needed)
 
-The script printed the ids. On a live tenant they are `customfield_XXXXX`, not
-the display names:
+The app does **not** hold a Jira API token. It calls Jira through Forge:
+
+```js
+api.asApp().requestJira(...)   // Forge injects an installation-scoped token
+```
+
+Those tokens come from the scopes declared in `manifest.yml`
+(`read:jira-work`, `write:jira-work`) and are minted per installation. There is
+nothing to paste in, and nothing to rotate.
+
+What the app *does* need is **configuration** — the `customfield_XXXXX` ids of
+the five Fleet fields, because it has to know which field is "Fleet Worker". The
+script printed those ids:
 
 ```powershell
 $env:FLEET_MCP_TOKEN = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
@@ -335,15 +478,63 @@ forge variables set FLEET_FIELD_RETRY customfield_XXXXX
 forge variables set --encrypt FLEET_MCP_TOKEN $env:FLEET_MCP_TOKEN
 
 forge deploy
-forge install
+forge install --site YOUR-SITE.atlassian.net --product Jira --confirm-scopes
 ```
 
-**You should see:** `forge deploy` succeeds and `forge install` reports a
-successful installation on your site.
+There are three different things called "token" in this system. Only one is an
+Atlassian credential:
 
-Environment variables only take effect after `forge deploy`, so deploy last.
+| Name | What it is | Used by |
+|---|---|---|
+| *(none)* | Forge-minted installation token via `asApp()` | the app: panel, reaper, MCP tools |
+| `JIRA_ADMIN_TOKEN` | a real Jira API token from an admin account | `provision.mjs` only |
+| `FLEET_JIRA_TOKEN` | a real Jira API token from the Fleet Bot | the worker and `fleet-run` |
+| `FLEET_MCP_TOKEN` | **not** an Atlassian credential — a shared secret you invent, so the public webtrigger URL is not open to anyone | the app, to authenticate incoming MCP calls |
+
+> **`forge deploy` does not read `.env`** — and neither does `forge install`. The
+> app reads `forge variables set` at runtime; those are stored on Atlassian's
+> servers, not on your disk. If you keep secrets in the root `.env`, load them
+> into the shell first:
+>
+> ```powershell
+> Get-Content .env | Where-Object { $_ -match '^\s*[A-Z_]+=' } | ForEach-Object {
+>   $name, $value = $_ -split '=', 2
+>   Set-Item -Path "Env:$($name.Trim())" -Value $value.Trim()
+> }
+> ```
+>
+> Then reference `$env:FLEET_MCP_TOKEN` etc. as below.
+
+**You should see:** `forge deploy` ends with `Deployed`. If the app was already
+installed, Forge prints:
+
+```
+We've detected new scopes or egress URLs in your app.
+Run forge install --upgrade and restart your tunnel to put them into effect.
+```
+
+That is not an error — the deploy succeeded. It happens because a **dynamic**
+webtrigger counts as egress, which is a major version change. Run:
+
+```powershell
+forge install --upgrade --site YOUR-SITE.atlassian.net --product Jira
+```
+
+If the app is not installed yet (`forge install list` says so), use plain
+`forge install` instead; `--upgrade` is only for replacing an existing install.
+
+Environment variables only take effect after a deploy, so always deploy last.
 
 ### 5.6 Prove the tenant is wired — do not skip this
+
+Easiest, reusing the `.env` you will use for the worker anyway:
+
+```powershell
+cd forge-app
+npm run verify:env
+```
+
+Or with explicit flags (for a Fleet Bot token that is *not* in `.env`):
 
 ```powershell
 node scripts/verify-setup.mjs `
@@ -353,11 +544,19 @@ node scripts/verify-setup.mjs `
   --project FLT
 ```
 
-**You should see:** a list of `ok` lines for the five fields, the project, each
-status, and `Ready for Build -> Claim -> In Build`, ending in `Ready.`
+**You should see:** `ok` for the five fields, the project, each status, the
+`Claim` transition, and this at the end:
 
-This catches the two silent breakages that would otherwise look like application
-bugs. Do not go further until it passes.
+```
+Transition screens
+  ok    "Claim" accepts Fleet Worker
+  ok    "Claim" accepts Fleet Lease
+Ready.
+```
+
+That last block reports whether the Claim transition screen accepts the fields.
+`FAIL` there no longer blocks you — the worker falls back — but adding them makes
+the claim atomic, so it is worth doing.
 
 ### 5.7 Run the loop
 
@@ -365,33 +564,85 @@ bugs. Do not go further until it passes.
 **Fleet** panel and choose **Dispatch to fleet** — it moves to `Ready for Build`
 and deliberately stays *unclaimed*; the panel never claims on a worker's behalf.
 
-**b)** Start a worker:
+**b)** Start a worker. You do not type the customfield ids — `fleet-run` asks Jira
+for them.
+
+**There is one `.env` for the whole repo, at its root.** Copy the example and
+fill it in:
 
 ```powershell
-cd ..\fleet-worker
-
-node bin/fleet-worker.js run `
-  --jira https://YOUR-SITE.atlassian.net `
-  --email bot@EXAMPLE.COM `
-  --token $env:FLEET_JIRA_TOKEN `
-  --project FLT `
-  --repo "$HOME\.fleet\worker-01\app" `
-  --remote git@bitbucket.org:YOUR-WORKSPACE/YOUR-REPO.git `
-  --adapter cmdc `
-  --bb-workspace YOUR-WORKSPACE --bb-repo YOUR-REPO `
-  --bb-username YOUR-BITBUCKET-USER --bb-app-password $env:BB_APP_PASSWORD `
-  --field-worker customfield_XXXXX --field-lease customfield_XXXXX `
-  --field-branch customfield_XXXXX --field-pr customfield_XXXXX `
-  --field-retry customfield_XXXXX
+cd C:\path\to\decentralize-workload
+Copy-Item .env.example .env
 ```
 
-Use `--adapter script` instead of `cmdc` for a first run: it takes the whole
-protocol through to a PR without needing a coding agent installed. Add `--once`
-to do a single poll cycle and exit instead of looping.
+The file documents every setting, grouped by what needs it. The four that matter
+for a first run:
 
-**You should see:** within 30-60 seconds it claims the ticket (`Fleet Worker` and
-`Fleet Lease` fill in on the issue), runs the harness, pushes a branch, opens a
-PR, and moves the ticket to `In Review`.
+```ini
+JIRA_URL=https://YOUR-SITE.atlassian.net
+JIRA_EMAIL=bot@EXAMPLE.COM          # the Fleet Bot, not the admin
+JIRA_TOKEN=
+FLEET_REPO=C:\Users\you\.fleet\worker-01\app
+```
+
+Why one file and not two: only the **worker** reads a `.env`. The Forge app runs
+inside Atlassian's cloud and reads `forge variables set` instead — it cannot see
+your disk, so a `forge-app\.env` would do nothing. That is also why `forge
+deploy` appears to "ignore" `.env`.
+
+Then, from `fleet-worker\` (or the repo root — the search covers both):
+
+```powershell
+cd fleet-worker
+.\fleet-run.ps1 --check      # resolve config + field ids + base branch
+.\fleet-run.ps1              # one poll cycle, then exit
+.\fleet-run.ps1 --loop       # poll forever (Ctrl-C to stop)
+```
+
+`fleet-run.bat` is identical if you prefer cmd. Both are thin wrappers around
+`bin/fleet-run.js`, which:
+
+1. finds `.env` by searching from the current directory upward, then the repo
+   root, then beside the worker package (set `FLEET_NO_ENV=1` to ignore it);
+2. calls `/rest/api/3/myself` so it can print **which account** it is running as;
+3. calls `/rest/api/3/field` and resolves `Fleet Worker` -> `customfield_10213`
+   and the rest;
+4. asks the git remote for its default branch;
+5. hands the equivalent argv to the normal `fleet-worker run`, so it cannot drift
+   from the hand-typed command.
+
+**You should see:**
+
+```
+Config: environment + .env
+Jira:   https://your-site.atlassian.net as Fleet Bot (project FLT)
+Fields:
+  Fleet Worker  customfield_10213
+  Fleet Lease   customfield_10214
+  ...
+PR host: bitbucket
+```
+
+followed by the worker log. Within 30-60 seconds it claims the ticket
+(`Fleet Worker` and `Fleet Lease` fill in on the issue), runs the harness, pushes
+a branch, opens a PR, and moves the ticket to `In Review`.
+
+Exit codes are deliberate, so a wrapper script can react:
+
+| Code | Meaning |
+|---|---|
+| 0 | ran (or `--check` passed) |
+| 2 | missing configuration |
+| 3 | Jira rejected the credentials (401) |
+| 4 | the Fleet fields do not exist — run the provisioning script |
+
+On a first run use `--adapter script` in `.env` instead of `cmdc`: it takes the
+whole protocol through to a PR without needing a coding agent installed.
+
+> The full hand-typed command still works and is what `--check` prints — see
+> `fleet-run.ps1 --verbose` if you want to see it. Use it if you prefer explicit
+> flags, or when scripting on a machine without this wrapper.
+
 
 **c)** Optional but recommended: exercise the MCP endpoint. Get its URL, then
 call it:
@@ -450,14 +701,28 @@ Things that should *not* happen:
 
 | Symptom | Cause and fix |
 |---|---|
-| Worker: `no transition "Claim" available` | workflow names do not match 5.4b — run `verify-setup.mjs` |
+| `provision.mjs` exits 3 / "cannot administer Jira" | the token's account lacks *Administer Jira*. Create the token from an admin account, or have an admin grant it (5.1) |
+| `只有JIRA管理员权限的用户才能执行此操作` | same thing in Chinese: "only Jira administrators can perform this operation". Do not make a new token — the account needs the right |
+| `provision.mjs` exits 3 / "Authentication failed (HTTP 401)" | email and token are from different accounts, or the token was revoked. Recreate it from the same account as `--email` |
+| Worker: `HTTP 410 ... migrate to the /rest/api/3/search/jql API` | your `fleet-worker` is older than the Atlassian API change. Pull the current code — `search()` now POSTs to `/search/jql` |
+| `couldn't find remote ref main` | the repo's default branch is not `main`. The worker now detects it; if you still see this, set `FLEET_BASE_BRANCH` |
+| `cannot determine the base branch` | the remote has no recognisable default. The error lists the branches it does have — set `FLEET_BASE_BRANCH` from that list |
+| `cannot be set. It is not on the appropriate screen` | the transition screen is not configured (5.4b). The worker now falls back automatically; add the fields to make claims atomic |
+| Worker: `no transition "Claim" available` | workflow names do not match 5.4c — run `verify:env` |
 | Worker: `harness produced no file changes` | correct behaviour; the harness did nothing. Set `FLEET_SCRIPT_FILE` (4.3) or use a real adapter |
 | Worker claims nothing | ticket is not `Ready for Build`, or the app never dispatched it |
+| `fleet-run` exits 2 | credentials missing — check the root `.env` or your shell |
+| `fleet-run` exits 3 | Jira rejected the token; `JIRA_EMAIL` and `JIRA_TOKEN` must be the same account |
+| `fleet-run` exits 4 | the Fleet fields are missing on the tenant — run `provision.mjs` |
+| `fleet-run` says "PR host: local" unexpectedly | Bitbucket credentials are incomplete, so PRs are recorded locally instead of opened |
 | Panel blank or unstyled | `npm run build:ui` was not run before `forge deploy` (Level 3) |
 | Panel: "The Fleet panel could not load this ticket" | field variables are display names, not `customfield_*` (5.5) |
 | Panel shows a stale lease forever | the reaper is not running — check the scheduled trigger deployed |
 | MCP returns 401 | `FLEET_MCP_TOKEN` does not match the bearer header |
 | MCP returns 503 | `FLEET_MCP_TOKEN` unset, or set after the last deploy |
+| `forge deploy` fails: "Function ... defines timeoutSeconds but is used by webtrigger" | only `consumer` and `scheduledTrigger` functions may set a timeout. Remove `timeoutSeconds` from the webtrigger function in `manifest.yml` |
+| `forge deploy` prints "new scopes or egress URLs" then exits 1 | not a failure — run `forge install --upgrade --site ... --product Jira` (5.5) |
+| `forge deploy` seems to ignore `.env` | it does not read `.env`. Load the values into the shell, then `forge variables set` from `$env:...` (5.5) |
 | `forge deploy` fails on the app id | run `forge register` (5.2) |
 | `npm run build:ui` errors after a reinstall | the panel's `package.json` gained a `fleet-forge-app: file:../../..` entry. Tests catch this; remove it and rebuild |
 | `forge lint` says "app could not be found" | expected before `forge register`; the manifest itself is valid |
@@ -487,14 +752,34 @@ node scripts/provision.mjs --jira ... --email ... --token ... --project FLT --le
 # ... manual screen + workflow steps ...
 forge variables set ... ; forge deploy ; forge install
 node scripts/verify-setup.mjs --jira ... --email ... --token ...
+
+# Level 5.7 — run a worker (settings in fleet-worker\.env)
+cd ..\fleet-worker
+.\fleet-run.ps1 --check      # what it will do
+.\fleet-run.ps1              # one poll cycle
+.\fleet-run.ps1 --loop       # daemon
 ```
 
 ## What has actually been verified here
 
 Stated plainly so you know what to trust:
 
-- Levels 1-4 have been run and pass in this repo (35 worker tests, 72 app tests,
-  panel build, real CLI against the offline fleet).
+- Levels 1-4 have been run and pass in this repo (53 worker tests, 81 app tests,
+  panel build, real CLI against the offline fleet). The non-admin and
+  bad-token diagnoses are covered by tests against a stub that refuses both.
+- The base branch is detected from the remote; verified end to end on a repo
+  whose default is `master`, with no branch configured.
+- The claim fallback for unconfigured transition screens is covered at both
+  levels: the client alone, and a full run on a tenant whose screens reject
+  every field (still reaches `In Review`).
+- `npm run verify:env` and the transition-screen check have been exercised
+  against the mock in both states: fields present (passes) and absent (fails
+  with the exact field name).
+- `fleet-run` (`bin/fleet-run.js`, `fleet-run.bat`, `fleet-run.ps1`) has been run
+  end to end through the `.bat` launcher with settings coming only from `.env`,
+  and a ticket reached `In Review`.
+- `forge deploy` has been run once against a real app registration and succeeds
+  after the `timeoutSeconds` fix; `forge install` has not been run.
 - Level 5 has **not** been run against a live tenant — nothing was registered or
   installed during development. The commands and the admin steps are the parts
   that need your account.

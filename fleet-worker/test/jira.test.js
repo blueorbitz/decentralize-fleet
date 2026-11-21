@@ -27,6 +27,36 @@ test('search returns only claimable tickets', async () => {
   });
 });
 
+test('search uses /search/jql, not the removed legacy endpoint', async () => {
+  await withMock(async (mock, baseUrl) => {
+    mock.addTicket({ key: 'FLT-1', status: 'Ready for Build' });
+
+    // The mock answers 410 on the legacy endpoint, exactly as production does,
+    // so this passes only if the client uses the replacement.
+    const found = await client(baseUrl).findClaimable('project = FLT AND status = "Ready for Build"');
+    assert.deepEqual(found.map((t) => t.key), ['FLT-1']);
+
+    const posted = mock.requests.filter((r) => r.path === '/rest/api/3/search/jql');
+    assert.equal(posted.length, 1, 'expected exactly one call to /search/jql');
+    assert.equal(posted[0].method, 'POST');
+    assert.match(posted[0].body.jql, /status = "Ready for Build"/);
+    // The new endpoint takes `fields` as an array, not a comma-joined string.
+    assert.ok(Array.isArray(posted[0].body.fields));
+  });
+});
+
+test('no client path reaches the removed legacy search endpoint', async () => {
+  await withMock(async (mock, baseUrl) => {
+    mock.addTicket({ key: 'FLT-2', status: 'Ready for Build' });
+    const c = client(baseUrl);
+    await c.findClaimable('project = FLT AND status = "Ready for Build"');
+    await c.findInBuild();
+
+    const legacy = mock.requests.filter((r) => r.path === '/rest/api/3/search');
+    assert.deepEqual(legacy, [], 'a client call still uses the removed /rest/api/3/search');
+  });
+});
+
 test('claim is a CAS transition that sets worker + lease', async () => {
   await withMock(async (mock, baseUrl) => {
     mock.addTicket({ key: 'FLT-1', status: 'Ready for Build' });

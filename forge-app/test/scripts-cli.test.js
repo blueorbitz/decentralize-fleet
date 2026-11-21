@@ -73,3 +73,38 @@ test('both scripts refuse to run without credentials', async () => {
     assert.match(stderr, /missing --jira, --email and --token/);
   }
 });
+
+// A Jira API token inherits its permissions from the account that created it.
+// A non-admin gets a 400 with a localised message, which is unreadable; the
+// script must say what is actually wrong and whose token it is.
+test('provision.mjs explains a non-admin account instead of a raw 400', async () => {
+  const stub = await startJiraStub({ isAdmin: false });
+  try {
+    const { code, stderr } = await run('provision.mjs', [...auth(stub), '--project', 'FLT']);
+
+    assert.equal(code, 3, 'a permission problem is its own exit code');
+    assert.match(stderr, /Stub Admin \(admin@acme\.com\) cannot administer Jira/);
+    assert.match(stderr, /Making a new token will not help/);
+    assert.match(stderr, /Global permissions > Administer Jira/);
+    // The raw, translated Jira error must not be the whole story.
+    assert.doesNotMatch(stderr, /^provisioning failed:/m);
+    // And nothing was written.
+    assert.equal(stub.state.writes.length, 0);
+  } finally {
+    await stub.close();
+  }
+});
+
+test('provision.mjs explains a rejected token rather than a Jira bug', async () => {
+  const stub = await startJiraStub({ rejectAuth: true });
+  try {
+    const { code, stderr } = await run('provision.mjs', [...auth(stub), '--project', 'FLT']);
+
+    assert.equal(code, 3);
+    assert.match(stderr, /Authentication failed \(HTTP 401\)/);
+    assert.match(stderr, /same account as --email/);
+    assert.doesNotMatch(stderr, /^provisioning failed:/m);
+  } finally {
+    await stub.close();
+  }
+});

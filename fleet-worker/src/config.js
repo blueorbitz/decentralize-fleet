@@ -139,7 +139,9 @@ export function loadConfig(argv = process.argv.slice(2), env = process.env) {
     repo: {
       path: repoPath,
       remote: pick(args, env, 'remote', 'FLEET_REMOTE'),
-      baseBranch: pick(args, env, 'base-branch', 'FLEET_BASE_BRANCH', 'main'),
+      // No default: the worker asks the remote which branch it considers HEAD.
+      // Defaulting to 'main' broke every repository whose default is 'master'.
+      baseBranch: pick(args, env, 'base-branch', 'FLEET_BASE_BRANCH'),
     },
     worker: {
       id: workerId,

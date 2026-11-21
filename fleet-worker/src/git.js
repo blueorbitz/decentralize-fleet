@@ -42,10 +42,13 @@ export function branchFor(key, summary) {
 }
 
 export class GitClient {
-  constructor({ dir, remote, baseBranch = 'main', run = defaultRun }) {
+  constructor({ dir, remote, baseBranch = null, run = defaultRun }) {
     this.dir = dir;
     this.remote = remote;
-    this.baseBranch = baseBranch;
+    // null means "ask the remote". Hardcoding `main` breaks every repository
+    // whose default branch is `master`, and the failure surfaces as a confusing
+    // `couldn't find remote ref main`.
+    this.baseBranch = baseBranch || null;
     this._run = run;
   }
 
@@ -53,7 +56,47 @@ export class GitClient {
     return this._run('git', args, { cwd: this.dir });
   }
 
-  // Clone if the workspace is empty, otherwise fetch the latest base branch.
+  // Which branch does the remote consider its default?
+  //
+  // `ls-remote --symref origin HEAD` is the authoritative answer and works for
+  // local-path remotes too. If that fails (an older git, an odd remote), fall
+  // back to the first conventional name that actually exists remotely.
+  detectBaseBranch() {
+    try {
+      const out = this.git(['ls-remote', '--symref', 'origin', 'HEAD']);
+      const match = out.match(/^ref:\s+refs\/heads\/(\S+)\s+HEAD/m);
+      if (match) return match[1];
+    } catch {
+      /* fall through to the name probe */
+    }
+    for (const candidate of ['main', 'master', 'develop', 'trunk']) {
+      try {
+        this.git(['rev-parse', '--verify', `origin/${candidate}`]);
+        return candidate;
+      } catch {
+        /* try the next one */
+      }
+    }
+    return null;
+  }
+
+  // The branches the remote actually has, for a useful error message.
+  // `branch -r` also lists `origin/HEAD` and, in a freshly cloned repo, a bare
+  // `origin`; neither is a branch you can cut from.
+  remoteBranches() {
+    try {
+      return this.git(['branch', '-r', '--format=%(refname:short)'])
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('origin/'))
+        .map((l) => l.slice('origin/'.length))
+        .filter((l) => l && l !== 'HEAD');
+    } catch {
+      return [];
+    }
+  }
+
+  // Clone if the workspace is empty, then make sure we know the base branch.
   prepare() {
     if (this.remote) {
       try {
@@ -62,7 +105,29 @@ export class GitClient {
         this.git(['clone', this.remote, '.']);
       }
     }
-    this.git(['fetch', 'origin', this.baseBranch]);
+
+    if (!this.baseBranch) {
+      this.baseBranch = this.detectBaseBranch();
+      if (!this.baseBranch) {
+        const available = this.remoteBranches();
+        throw new GitError(
+          `cannot determine the base branch for ${this.remote || this.dir}` +
+            `${available.length ? ` (remote has: ${available.join(', ')})` : ''}. ` +
+            'Set it explicitly with --base-branch / FLEET_BASE_BRANCH.',
+        );
+      }
+    }
+
+    try {
+      this.git(['fetch', 'origin', this.baseBranch]);
+    } catch (err) {
+      const available = this.remoteBranches();
+      throw new GitError(
+        `fetch of base branch "${this.baseBranch}" failed` +
+          `${available.length ? `; the remote has: ${available.join(', ')}` : ''}. ` +
+          'Set the right branch with --base-branch / FLEET_BASE_BRANCH.',
+      );
+    }
   }
 
   // Step 5: clean the tree back to the base branch.

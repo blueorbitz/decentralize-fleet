@@ -1,0 +1,14 @@
+# Secrets. Never commit these.
+.env
+.env.*
+!.env.example
+
+# Local workspaces the worker clones into.
+.fleet/
+
+# Dependencies and build output.
+node_modules/
+dist/
+
+# Logs from worker runs.
+*.log

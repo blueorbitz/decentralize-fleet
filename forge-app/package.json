@@ -11,7 +11,8 @@
     "test": "node --test test/*.test.js",
     "build:ui": "cd src/static/issue-panel && npm install --include=dev && npm run build",
     "provision": "node scripts/provision.mjs",
-    "verify": "node scripts/verify-setup.mjs"
+    "verify": "node scripts/verify-setup.mjs",
+    "verify:env": "node scripts/verify-from-env.mjs"
   },
   "dependencies": {
     "@forge/api": "^8.5.0",

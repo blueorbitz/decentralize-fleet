@@ -34,3 +34,49 @@ test('git client resets to base, branches, commits and pushes', () => {
     ws.cleanup();
   }
 });
+
+// Most Bitbucket repositories default to `master`. Assuming `main` made every
+// run fail with "couldn't find remote ref main", so the client asks the remote.
+test('the base branch is detected when the remote default is master', () => {
+  const ws = makeGitWorkspace({ branch: 'master' });
+  try {
+    const git = new GitClient({ dir: ws.workspace });
+    git.prepare();
+
+    assert.equal(git.baseBranch, 'master');
+    const base = git.resetHard();
+    assert.equal(base.length, 40);
+    assert.equal(git.currentBranch(), 'master');
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('an explicitly configured base branch is never second-guessed', () => {
+  const ws = makeGitWorkspace({ branch: 'master' });
+  try {
+    const git = new GitClient({ dir: ws.workspace, baseBranch: 'master' });
+    git.prepare();
+    assert.equal(git.baseBranch, 'master');
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test('a branch that does not exist fails with the branches the remote has', () => {
+  const ws = makeGitWorkspace({ branch: 'trunk' });
+  try {
+    const git = new GitClient({ dir: ws.workspace, baseBranch: 'main' });
+    assert.throws(
+      () => git.prepare(),
+      (err) => {
+        assert.match(err.message, /fetch of base branch "main" failed/);
+        assert.match(err.message, /the remote has: trunk/);
+        assert.match(err.message, /FLEET_BASE_BRANCH/);
+        return true;
+      },
+    );
+  } finally {
+    ws.cleanup();
+  }
+});

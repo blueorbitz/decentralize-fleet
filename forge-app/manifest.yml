@@ -20,9 +20,11 @@ modules:
   function:
     - key: panel-resolver
       handler: backend/index.handler
+    # No timeoutSeconds on the webtrigger function: Forge only honours custom
+    # timeouts on consumer and scheduledTrigger functions, and `forge lint`
+    # rejects the manifest otherwise. A webtrigger gets the platform default.
     - key: mcp-handler
       handler: backend/index.mcpHandler
-      timeoutSeconds: 55
     - key: reaper-handler
       handler: backend/index.reaperHandler
       timeoutSeconds: 120
@@ -32,9 +34,7 @@ resources:
 app:
   runtime:
     name: nodejs24.x
-  # Placeholder. `forge register` replaces this with the app id it creates for
-  # your account; nothing else in the app depends on the value.
-  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+  id: ari:cloud:ecosystem::app/f3d9b563-6c87-4cd5-a0c3-28b071dbc637
 permissions:
   scopes:
     - read:jira-work

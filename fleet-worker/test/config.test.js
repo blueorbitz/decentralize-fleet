@@ -13,9 +13,19 @@ test('loadConfig reads required values from env', () => {
   const cfg = loadConfig([], { ...baseEnv });
   assert.equal(cfg.jira.baseUrl, 'https://x.atlassian.net');
   assert.equal(cfg.worker.adapter, 'cmdc');
-  assert.equal(cfg.repo.baseBranch, 'main');
+  // Left undefined on purpose: the git client asks the remote for its default
+  // branch. Defaulting here is what produced "couldn't find remote ref main".
+  assert.equal(cfg.repo.baseBranch, undefined);
   assert.equal(cfg.retryBudget, 1);
   assert.equal(cfg.timings.leaseStaleMs, 15 * 60_000);
+});
+
+test('a configured base branch is passed through', () => {
+  const cfg = loadConfig([], { ...baseEnv, FLEET_BASE_BRANCH: 'master' });
+  assert.equal(cfg.repo.baseBranch, 'master');
+
+  const flagged = loadConfig(['--base-branch', 'develop'], { ...baseEnv });
+  assert.equal(flagged.repo.baseBranch, 'develop');
 });
 
 test('flags override env', () => {

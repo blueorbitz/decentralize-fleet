@@ -24,6 +24,31 @@ Three resolver functions back the panel: `fleet.panel`, `fleet.dispatch`,
 `fleet.requeue`. The panel never claims a ticket — claiming is the worker's
 status-transition compare-and-swap, and the panel must not compete for it.
 
+## Configuration
+
+The app reads **no `.env` file**. It runs inside Atlassian's cloud, so its
+settings are deployed with the app:
+
+```sh
+forge variables set FLEET_PROJECT FLT
+forge variables set FLEET_FIELD_WORKER customfield_10101
+...
+```
+
+| Variable | What it is |
+|---|---|
+| `FLEET_PROJECT` | project key, default `FLT` |
+| `FLEET_FIELD_WORKER` / `_LEASE` / `_BRANCH` / `_PR` / `_RETRY` | the `customfield_XXXXX` ids of the five Fleet fields |
+| `FLEET_MCP_TOKEN` | a shared secret you invent, checked on every MCP request (not an Atlassian credential) |
+
+Jira itself is reached through `api.asApp().requestJira()`, so the app holds no
+Jira API token — Forge mints one per installation from the scopes in
+`manifest.yml`.
+
+The **worker** is a separate local process and does use a `.env`; there is one at
+the repo root. See [`../.env.example`](../.env.example) and
+[`../TESTING.md`](../TESTING.md) step 5.7.
+
 ## Install
 
 Requires the Forge CLI (`npm i -g @forge/cli`) and Node 20+.

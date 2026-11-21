@@ -21,21 +21,21 @@ function git(dir, args) {
   });
 }
 
-export function makeGitWorkspace({ seed } = {}) {
+export function makeGitWorkspace({ seed, branch = 'main' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fleet-git-'));
   const origin = path.join(root, 'origin.git');
   const seedDir = path.join(root, 'seed');
   const workspace = path.join(root, 'workspace');
 
   fs.mkdirSync(seedDir, { recursive: true });
-  git(root, ['init', '--bare', '-b', 'main', origin]);
-  git(seedDir, ['init', '-b', 'main']);
+  git(root, ['init', '--bare', '-b', branch, origin]);
+  git(seedDir, ['init', '-b', branch]);
   if (typeof seed === 'function') seed(seedDir);
   fs.writeFileSync(path.join(seedDir, 'README.md'), '# demo repo\n');
   git(seedDir, ['add', '-A']);
   git(seedDir, ['commit', '-m', 'init']);
   git(seedDir, ['remote', 'add', 'origin', origin]);
-  git(seedDir, ['push', 'origin', 'main']);
+  git(seedDir, ['push', 'origin', branch]);
 
   git(root, ['clone', origin, workspace]);
 
@@ -43,6 +43,7 @@ export function makeGitWorkspace({ seed } = {}) {
     root,
     origin,
     workspace,
+    branch,
     cleanup() {
       fs.rmSync(root, { recursive: true, force: true });
     },

@@ -6,7 +6,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import { JiraClient, isLeaseStale } from './jira.js';
+import { JiraClient, JiraError, isLeaseStale } from './jira.js';
 import { GitClient, branchFor } from './git.js';
 import { createGitHost } from './git-host.js';
 import { runAdapter } from './adapter-runner.js';
@@ -109,7 +109,22 @@ export class Worker {
       transition = await this.jira.claim(key, { workerId: this.workerId, now: claimedAt });
     } catch (err) {
       if (err.status === 400) {
-        this.log.info(`${key} lost the claim race (HTTP 400) — moving on`);
+        // A 400 from the transitions endpoint is not necessarily a lost race.
+        // It is also what Jira returns for a field that is not on the
+        // transition's screen, or a value it will not accept. The only way to
+        // tell them apart is to look at the ticket: a lost race means someone
+        // else moved it off Ready, so if it is still Ready this was a real
+        // error and must not be swallowed as "moving on".
+        const current = await this.jira.getIssue(key, { fields: [] }).catch(() => null);
+        const stillClaimable = current?.status === STATUS.READY;
+        if (stillClaimable) {
+          throw new JiraError(
+            `claim failed for ${key} with HTTP 400 but the ticket is still "${STATUS.READY}", ` +
+              `so this is not a lost race: ${err.message}`,
+            { status: err.status, body: err.body },
+          );
+        }
+        this.log.info(`${key} lost the claim race (now "${current?.status}") — moving on`);
         return { status: 'lost' };
       }
       throw err;
@@ -138,9 +153,12 @@ export class Worker {
     // Step 5 — git: reset to base, branch.
     const branch = branchFor(key, snapshot.summary);
     this.git.prepare();
+    // prepare() resolves the base branch from the remote when it was not
+    // configured, so read it back rather than trusting the config value.
+    const baseBranch = this.git.baseBranch;
     const baseSha = this.git.resetHard();
     this.git.checkoutNewBranch(branch);
-    this.log.info(`git reset origin/${this.cfg.repo.baseBranch} @ ${baseSha.slice(0, 8)} · branch ${branch}`);
+    this.log.info(`git reset origin/${baseBranch} @ ${baseSha.slice(0, 8)} · branch ${branch}`);
 
     // Step 6 — run the adapter (harness) with a heartbeat running alongside.
     const runLog = path.join(this.logDir, `${key}-${stamp(claimedAt)}.log`);
@@ -150,7 +168,7 @@ export class Worker {
       description: snapshot.description,
       acceptance_criteria: snapshot.acceptanceCriteria,
       repo_path: this.cfg.repo.path,
-      base_branch: this.cfg.repo.baseBranch,
+      base_branch: baseBranch,
       timeout_s: Math.round(this.cfg.timings.runTimeoutMs / 1000),
       snapshot_at: snapshot.at,
       log_dir: this.logDir,
@@ -196,12 +214,12 @@ export class Worker {
     // Step 8 — commit, push, open the PR (human merges; the fleet never does).
     const commitSha = this.git.commitAll(`${key}: ${snapshot.summary}`);
     this.git.push(branch);
-    const body = buildPrBody({ key, snapshot, result, branch, baseBranch: this.cfg.repo.baseBranch, workerId: this.workerId });
+    const body = buildPrBody({ key, snapshot, result, branch, baseBranch, workerId: this.workerId });
     const pr = await this.host.createPullRequest({
       title: `${key}: ${snapshot.summary}`,
       description: body,
       sourceBranch: branch,
-      destinationBranch: this.cfg.repo.baseBranch,
+      destinationBranch: baseBranch,
     });
     await this.jira.report(key, { branch, prUrl: pr.url });
     await this.jira.comment(

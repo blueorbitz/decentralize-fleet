@@ -31,13 +31,21 @@ export const FLOW = {
 };
 
 export class MockJira {
-  constructor({ project = 'FLT', fields = DEFAULT_FIELDS, requireAuth = true } = {}) {
+  constructor({ project = 'FLT', fields = DEFAULT_FIELDS, requireAuth = true, fieldList = null, rejectAuth = false, rejectTransitionFields = false } = {}) {
     this.project = project;
     this.fields = fields;
     this.requireAuth = requireAuth;
+    // When true, a transition that carries fields is refused with a 400, as Jira
+    // does when those fields are not on the transition's screen.
+    this.rejectTransitionFields = rejectTransitionFields;
+    // What GET /rest/api/3/field reports; null means "all fields this mock knows".
+    this.fieldList = fieldList;
+    this.rejectAuth = rejectAuth;
     this.issues = new Map();
     this.comments = new Map();
     this.seq = 100;
+    // Every request the client made, so tests can assert on the wire shape.
+    this.requests = [];
     this.writes = [];
     this.transitionLog = [];
     this.server = http.createServer((req, res) => this.#handle(req, res));
@@ -57,17 +65,22 @@ export class MockJira {
     const i = this.issues.get(key);
     if (!i) return null;
     const f = i.fields;
+    // The worker normally writes by display name (tests pass `--field-*` names),
+    // but an operator script resolves real customfield ids. Accept both so a
+    // ticket written with ids is still readable here.
+    const read = (displayName, fallbackId) => f[displayName] ?? f[fallbackId] ?? null;
     return {
       key: i.key,
       summary: f.summary,
       status: f.status.name,
-      worker: f[this.fields.worker] ?? null,
-      lease: f[this.fields.lease] ?? null,
-      branch: f[this.fields.branch] ?? null,
-      pr: f[this.fields.pr] ?? null,
-      retry: f[this.fields.retry] ?? 0,
-      comments: this.comments.get(key) || [],
+      worker: read(this.fields.worker, 'customfield_10001'),
+      lease: read(this.fields.lease, 'customfield_10002'),
+      branch: read(this.fields.branch, 'customfield_10003'),
+      pr: read(this.fields.pr, 'customfield_10004'),
+      retry: read(this.fields.retry, 'customfield_10005') ?? 0,
+      labels: f.labels || [],
       description: typeof f.description === 'string' ? f.description : adfToText(f.description),
+      comments: this.comments.get(key) || [],
     };
   }
 
@@ -96,7 +109,7 @@ export class MockJira {
       res.end(text);
     };
 
-    if (this.requireAuth && !String(req.headers.authorization || '').startsWith('Basic ')) {
+    if (this.rejectAuth || (this.requireAuth && !String(req.headers.authorization || '').startsWith('Basic '))) {
       return send(401, { errorMessages: ['authentication required'] });
     }
 
@@ -113,10 +126,45 @@ export class MockJira {
           body = null;
         }
       }
+      this.requests.push({ method: req.method, path, body });
 
-      // GET /rest/api/3/search
-      if (req.method === 'GET' && path === '/rest/api/3/search') {
-        const jql = url.searchParams.get('jql') || '';
+      // GET /rest/api/3/field — lets an operator script resolve the Fleet
+      // fields by display name instead of hard-coding customfield ids. Set
+      // `fieldList` to simulate a partially provisioned tenant.
+      if (req.method === 'GET' && path === '/rest/api/3/field') {
+        const all = Object.entries(this.fields).map(([key, name], i) => ({
+          id: `customfield_${10001 + i}`,
+          name,
+          custom: true,
+          schema: { type: 'string', custom: 'com.atlassian.jira.plugin.system.customfieldtypes:textfield' },
+          clauseNames: [name],
+          _fleetKey: key,
+        }));
+        return send(200, this.fieldList ?? all);
+      }
+
+      // GET /rest/api/3/myself — who the token belongs to.
+      if (req.method === 'GET' && path === '/rest/api/3/myself') {
+        return send(200, {
+          accountId: '557058:mock-account',
+          displayName: 'Mock Bot',
+          emailAddress: 'bot@demo',
+        });
+      }
+
+      // The legacy search endpoint was removed by Atlassian. Answer it the way
+      // production does, so a regression is a clear failure rather than a flake.
+      if (path === '/rest/api/3/search') {
+        return send(410, {
+          errorMessages: [
+            'The requested API has been removed. Please migrate to the /rest/api/3/search/jql API.',
+          ],
+        });
+      }
+
+      // POST /rest/api/3/search/jql — the current JQL search.
+      if (req.method === 'POST' && path === '/rest/api/3/search/jql') {
+        const jql = body?.jql || '';
         const statusMatch = jql.match(/status\s*=\s*"([^"]+)"/i);
         const projectMatch = jql.match(/project\s*=\s*(\w+)/i);
         const wantStatus = statusMatch ? statusMatch[1] : null;
@@ -126,7 +174,8 @@ export class MockJira {
           const okStatus = !wantStatus || i.fields.status.name === wantStatus;
           return okProject && okStatus;
         });
-        return send(200, { issues, total: issues.length });
+        // The real endpoint returns no `total`; it pages with `nextPageToken`.
+        return send(200, { issues, isLast: true });
       }
 
       const issueMatch = path.match(/^\/rest\/api\/3\/issue\/([^/]+)(?:\/(transitions|comment))?$/);
@@ -149,6 +198,23 @@ export class MockJira {
         if (!match) {
           this.transitionLog.push({ key, from: fromStatus, id: wanted, ok: false });
           return send(400, { errorMessages: ['Transition is not valid for the current status'] });
+        }
+        // Simulate a transition screen that rejects the fields we sent — the
+        // misconfiguration whose 400 is indistinguishable from a lost race.
+        // The message matches production exactly, because the client keys off
+        // the wording to decide whether to fall back.
+        if (this.rejectTransitionFields && body.fields) {
+          const rejected = Object.keys(body.fields);
+          this.transitionLog.push({ key, from: fromStatus, id: wanted, ok: false, cause: 'fields' });
+          return send(400, {
+            errorMessages: [],
+            errors: Object.fromEntries(
+              rejected.map((id) => [
+                id,
+                `Field '${id}' cannot be set. It is not on the appropriate screen, or unknown.`,
+              ]),
+            ),
+          });
         }
         if (body.fields) this.#applyFields(key, body.fields);
         issue.fields.status = { name: match.to };

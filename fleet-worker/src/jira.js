@@ -55,10 +55,21 @@ export class JiraClient {
 
   // --- reads -------------------------------------------------------------
 
-  async search(jql, { maxResults = 50, fields = [] } = {}) {
+  // JQL search via the current endpoint.
+  //
+  // The legacy `GET /rest/api/3/search` was removed by Atlassian and now answers
+  // HTTP 410; `/search/jql` is the replacement. It takes a JSON body, returns
+  // `fields` as an array of names, and paginates with `nextPageToken` instead of
+  // `startAt`/`total` — there is no total count, so callers must not expect one.
+  async search(jql, { maxResults = 50, fields = [], nextPageToken } = {}) {
     const wanted = Array.from(new Set(['summary', 'status', 'description', 'priority', 'labels', ...fields]));
-    const json = await this.request('GET', '/rest/api/3/search', {
-      query: { jql, maxResults, fields: wanted.join(',') },
+    const json = await this.request('POST', '/rest/api/3/search/jql', {
+      body: {
+        jql,
+        maxResults,
+        fields: wanted,
+        ...(nextPageToken ? { nextPageToken } : {}),
+      },
     });
     return (json?.issues || []).map((issue) => this.normalize(issue));
   }
@@ -84,6 +95,18 @@ export class JiraClient {
   async getTransitions(key) {
     const json = await this.request('GET', `/rest/api/3/issue/${encodeURIComponent(key)}/transitions`);
     return json?.transitions || [];
+  }
+
+  // Who the credentials belong to. Useful for an operator script that wants to
+  // say "running as X" instead of failing later with a confusing 401.
+  async whoami() {
+    return this.request('GET', '/rest/api/3/myself');
+  }
+
+  // All custom fields on the tenant, so a caller can resolve the Fleet fields by
+  // display name rather than hard-coding customfield ids.
+  async listFields() {
+    return (await this.request('GET', '/rest/api/3/field')) || [];
   }
 
   // --- writes ------------------------------------------------------------
@@ -112,14 +135,34 @@ export class JiraClient {
     });
   }
 
-  // Claim = the CAS transition plus the worker/lease fields in one request.
+  // Claim = the CAS status transition, then the worker/lease fields.
+  //
+  // Ideally both go in one request, so a crash cannot leave a ticket In Build
+  // with no worker recorded. But Jira only accepts fields in a transition body
+  // if they are on that transition's *screen*, and a tenant that has not been
+  // configured that way rejects the whole claim with HTTP 400 — which looks
+  // exactly like losing a race. So: try the atomic form first, and if Jira says
+  // the fields are not on the screen, fall back to transition-then-update.
+  //
+  // The fallback is safe because the transition still happens first (the CAS),
+  // and if the process dies before the update, the lease is null, which the
+  // reaper treats as stale and requeues.
   async claim(key, { workerId, now = new Date() }) {
-    return this.transition(key, TRANSITION.CLAIM, {
-      fields: {
-        [this.fields.worker]: workerId,
-        [this.fields.lease]: now.toISOString(),
-      },
-    });
+    const claimFields = {
+      [this.fields.worker]: workerId,
+      [this.fields.lease]: now.toISOString(),
+    };
+
+    try {
+      return await this.transition(key, TRANSITION.CLAIM, { fields: claimFields });
+    } catch (err) {
+      if (!isFieldNotOnScreen(err)) throw err;
+
+      // Retry without fields: this is the compare-and-swap on its own.
+      const result = await this.transition(key, TRANSITION.CLAIM);
+      await this.setFields(key, claimFields);
+      return { ...result, fieldsDeferred: true };
+    }
   }
 
   async refreshLease(key, now = new Date()) {
@@ -188,6 +231,22 @@ function toNumber(value) {
   if (value == null || value === '') return null;
   const n = typeof value === 'number' ? value : Number.parseInt(String(value), 10);
   return Number.isFinite(n) ? n : null;
+}
+
+// Does this error say "that field is not on the screen"? Jira reports it in the
+// `errors` map keyed by field id, e.g.
+//   { errors: { customfield_10213: "Field '...' cannot be set. It is not on the
+//               appropriate screen, or unknown." } }
+// Matching on the specific sentence matters: a 400 for any other reason (a
+// required field, a bad value, a lost race) must not be retried as if it were
+// this one.
+export function isFieldNotOnScreen(err) {
+  if (!err || err.status !== 400) return false;
+  const errors = err.body?.errors;
+  if (!errors || typeof errors !== 'object') return false;
+  return Object.values(errors).some((message) =>
+    /not on the appropriate screen|not on the transition screen|cannot be set/i.test(String(message)),
+  );
 }
 
 // Is a lease timestamp older than the staleness window?

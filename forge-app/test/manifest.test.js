@@ -75,6 +75,41 @@ test('function timeouts fit the platform limits', () => {
   }
 });
 
+// `forge lint` rejects this at deploy time, which is far too late: Forge only
+// honours a custom timeout on consumer and scheduledTrigger functions. A
+// webtrigger function gets the platform default. This is the rule that broke
+// the first real deploy.
+test('only consumer and scheduledTrigger functions declare a timeout', () => {
+  const withTimeout = new Set(
+    manifest.modules.function.filter((f) => f.timeoutSeconds !== undefined).map((f) => f.key),
+  );
+  const mayHaveTimeout = new Set([
+    ...manifest.modules.scheduledTrigger.map((t) => t.function),
+    ...(manifest.modules.consumer || []).map((c) => c.function),
+  ]);
+
+  for (const key of withTimeout) {
+    assert.ok(
+      mayHaveTimeout.has(key),
+      `function "${key}" declares timeoutSeconds but is not referenced by a consumer or scheduledTrigger ` +
+        `— forge lint will reject this deploy. Referenced by: ${referencingModules(key).join(', ') || 'nothing'}`,
+    );
+  }
+});
+
+function referencingModules(functionKey) {
+  const refs = [];
+  for (const [moduleKey, list] of Object.entries(manifest.modules)) {
+    if (moduleKey === 'function') continue;
+    for (const module of list) {
+      if (module.function === functionKey || module.resolver?.function === functionKey) {
+        refs.push(`${moduleKey}:${module.key}`);
+      }
+    }
+  }
+  return refs;
+}
+
 test('byKey helper is consistent — no duplicate function keys', () => {
   assert.equal(byKey.size, manifest.modules.function.length);
 });

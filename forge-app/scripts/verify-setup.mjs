@@ -123,8 +123,61 @@ export async function verify({ client, project, log = console.log }) {
     else fail(`${from} -> ${name} -> ${to} is missing (have: ${available.join(', ') || 'none'})`);
   }
 
+  // A transition can exist and still reject the claim, because the fields it
+  // writes are not on that transition's screen. Jira answers that with a 400
+  // that looks exactly like a lost race, so check the screen explicitly.
+  log('\nTransition screens');
+  if (!available.some((a) => a.toLowerCase() === REQUIRED_TRANSITIONS[1][1].toLowerCase())) {
+    log(`  skip  "${REQUIRED_TRANSITIONS[1][1]}" is not available, so its screen cannot be checked`);
+  } else {
+    await checkClaimScreen({ client, key: sample.key, log, pass, fail });
+  }
+
   log(`\n${ok ? 'Ready.' : 'Not ready — see the failures above.'}`);
   return ok;
+}
+
+// Which fields does the "Claim" transition accept? If the Fleet fields are not
+// there, the worker's claim will 400 even though everything else is correct.
+async function checkClaimScreen({ client, key, log, pass, fail }) {
+  const transitions = await client.request(
+    'GET',
+    (tag) => tag`/rest/api/3/issue/${key}/transitions?expand=transitions.fields`,
+  );
+  const claim = (transitions?.transitions || []).find(
+    (t) => t.name.toLowerCase() === REQUIRED_TRANSITIONS[1][1].toLowerCase(),
+  );
+  if (!claim) {
+    fail(`"Claim" disappeared between requests`);
+    return;
+  }
+  if (!claim.hasScreen) {
+    log('  note  "Claim" has no screen, so it accepts no field values');
+    log('        the worker writes Fleet Worker + Fleet Lease during the claim,');
+    log('        so those two must be on the transition screen');
+  }
+
+  // Map the display names we need to the ids Jira uses in this response.
+  const fields = claim.fields || {};
+  const byName = new Map(
+    Object.entries(fields).map(([id, meta]) => [String(meta?.name || '').toLowerCase(), id]),
+  );
+
+  const needed = [DEFAULT_FIELDS.worker, DEFAULT_FIELDS.lease];
+  const missing = [];
+  for (const name of needed) {
+    if (byName.has(name.toLowerCase())) pass(`"Claim" accepts ${name}`);
+    else missing.push(name);
+  }
+  if (missing.length) {
+    // Not fatal: the worker falls back to writing the fields after the
+    // transition. Say so, rather than implying the fleet will not run.
+    log(`  note  ${missing.join(' and ')} are not on the Claim screen`);
+    log('        the worker will still claim, by writing them immediately after the');
+    log('        transition. Adding them to the screen makes the claim atomic (5.4b).');
+  } else {
+    pass('Claim is atomic — the transition and its fields happen in one request');
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

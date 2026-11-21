@@ -5,6 +5,7 @@
   "type": "module",
   "bin": {
     "fleet-worker": "bin/fleet-worker.js",
+    "fleet-run": "bin/fleet-run.js",
     "fleet-mcp": "bin/fleet-mcp.js"
   },
   "engines": {
@@ -18,6 +19,7 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "node bin/fleet-worker.js",
+    "run": "node bin/fleet-run.js",
     "demo": "node scripts/demo.mjs",
     "mock:fleet": "node scripts/mock-fleet.mjs",
     "smoke:cmdc": "node scripts/cmdc-smoke.mjs"

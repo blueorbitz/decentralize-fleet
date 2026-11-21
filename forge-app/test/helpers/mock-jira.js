@@ -34,9 +34,15 @@ export const FLOW = {
 };
 
 export class MockJira {
-  constructor({ project = 'FLT', fields = FIELDS, fieldList } = {}) {
+  constructor({ project = 'FLT', fields = FIELDS, fieldList, isAdmin = true, transitionFields } = {}) {
     this.project = project;
     this.fields = fields;
+    // Fields the transition screen accepts, by display name. Defaults to the two
+    // the worker writes during a claim.
+    this.transitionFields = transitionFields;
+    // Whether the calling account holds the Administer Jira global permission.
+    // Scripts probe this before attempting field creation.
+    this.isAdmin = isAdmin;
     // What GET /rest/api/3/field reports. Provisioning and verification both
     // read it, so it is seeded explicitly by the test that cares.
     this.fieldList = fieldList ?? [
@@ -126,11 +132,33 @@ export class MockJira {
         }
       }
 
+      // GET /rest/api/3/myself — who the token belongs to.
+      if (req.method === 'GET' && path === '/rest/api/3/myself') {
+        return send(200, {
+          accountId: '557058:mock-account',
+          displayName: 'Mock User',
+          emailAddress: 'mock@example.com',
+        });
+      }
+
+      // GET /rest/api/3/mypermissions — the caller's global permissions.
+      if (req.method === 'GET' && path === '/rest/api/3/mypermissions') {
+        return send(200, {
+          permissions: {
+            ADMINISTER: { havePermission: this.isAdmin, id: '0' },
+          },
+        });
+      }
+
       // GET /rest/api/3/field — what provisioning reads and creates.
       if (req.method === 'GET' && path === '/rest/api/3/field') {
         return send(200, this.fieldList);
       }
       if (req.method === 'POST' && path === '/rest/api/3/field') {
+        if (!this.isAdmin) {
+          // A real tenant returns 400, not 403, and localises the message.
+          return send(400, { errorMessages: ['Only Jira administrators can perform this operation.'] });
+        }
         const created = { id: `customfield_${20000 + this.fieldList.length}`, name: body?.name };
         this.fieldList.push(created);
         return send(201, created);
@@ -139,6 +167,16 @@ export class MockJira {
       // GET /rest/api/3/project/search — what verification looks up.
       if (req.method === 'GET' && path === '/rest/api/3/project/search') {
         return send(200, { values: [{ key: this.project, projectTypeKey: 'software' }] });
+      }
+
+      // Atlassian removed the legacy search endpoint; it answers 410. Reproduce
+      // that so a client that regresses to it fails loudly here too.
+      if (path === '/rest/api/3/search') {
+        return send(410, {
+          errorMessages: [
+            'The requested API has been removed. Please migrate to the /rest/api/3/search/jql API.',
+          ],
+        });
       }
 
       // POST /rest/api/3/search/jql
@@ -195,7 +233,29 @@ export class MockJira {
 
       if (sub === 'transitions' && req.method === 'GET') {
         const available = FLOW[issue.fields.status.name] || [];
-        return send(200, { transitions: available.map((t) => ({ id: t.id, name: t.name, to: { name: t.to } })) });
+        const expand = url.searchParams.get('expand');
+        const withFields = String(expand || '').includes('transitions.fields');
+        return send(200, {
+          transitions: available.map((t) => ({
+            id: t.id,
+            name: t.name,
+            to: { name: t.to },
+            // When expanded, report the fields this transition's screen accepts.
+            // `claimFields` on the mock controls it, so a test can simulate the
+            // common misconfiguration where the screen lacks the Fleet fields.
+            ...(withFields
+              ? {
+                  hasScreen: true,
+                  fields: Object.fromEntries(
+                    (this.transitionFields || ['Fleet Worker', 'Fleet Lease']).map((name, i) => [
+                      `customfield_${20000 + i}`,
+                      { name, required: false, operations: ['set'] },
+                    ]),
+                  ),
+                }
+              : {}),
+          })),
+        });
       }
 
       if (sub === 'transitions' && req.method === 'POST') {

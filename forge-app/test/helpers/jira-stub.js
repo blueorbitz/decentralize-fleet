@@ -7,9 +7,10 @@
 import http from 'node:http';
 import { adfToText } from '../../src/adf.js';
 
-export function startJiraStub({ fieldList, project = 'FLT', viaEmail = true } = {}) {
+export function startJiraStub({ fieldList, project = 'FLT', viaEmail = true, isAdmin = true, rejectAuth = false } = {}) {
   const state = {
     fieldList: fieldList ?? [{ id: 'customfield_10101', name: 'Fleet Worker' }],
+    isAdmin,
     writes: [],
     requests: [],
   };
@@ -33,12 +34,26 @@ export function startJiraStub({ fieldList, project = 'FLT', viaEmail = true } = 
         res.end(payload === undefined ? '' : JSON.stringify(payload));
       };
 
-      if (!String(req.headers.authorization || '').startsWith('Basic ')) {
+      if (rejectAuth || !String(req.headers.authorization || '').startsWith('Basic ')) {
         return send(401, { errorMessages: ['authentication required'] });
+      }
+
+      if (path === '/rest/api/3/myself') {
+        return send(200, {
+          accountId: '557058:stub-account',
+          displayName: 'Stub Admin',
+          emailAddress: 'admin@acme.com',
+        });
+      }
+      if (path === '/rest/api/3/mypermissions') {
+        return send(200, { permissions: { ADMINISTER: { havePermission: state.isAdmin, id: '0' } } });
       }
 
       if (path === '/rest/api/3/field' && req.method === 'GET') return send(200, state.fieldList);
       if (path === '/rest/api/3/field' && req.method === 'POST') {
+        if (!state.isAdmin) {
+          return send(400, { errorMessages: ['Only Jira administrators can perform this operation.'] });
+        }
         const created = { id: `customfield_${30000 + state.fieldList.length}`, name: body?.name };
         state.fieldList.push(created);
         state.writes.push({ path, body });

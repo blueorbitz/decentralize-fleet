@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { JiraClient } from '../src/jira.js';
 import { basicTransport } from '../src/transports.js';
 import { DEFAULT_FIELDS } from '../src/config.js';
+import { checkAdmin } from './jira-admin.mjs';
 
 const FIELDS = [
   {
@@ -89,18 +90,34 @@ function main() {
 
   run({
     client,
+    email,
     project: values.project,
     leadAccountId: values['lead-account-id'] || process.env.FLEET_JIRA_LEAD_ACCOUNT_ID,
     dryRun: values['dry-run'],
   }).catch((err) => {
+    if (err instanceof AdminRequiredError) {
+      console.error(err.message);
+      process.exit(3);
+    }
     console.error(`provisioning failed: ${err.message}`);
     if (err.body) console.error(JSON.stringify(err.body, null, 2));
     process.exit(1);
   });
 }
 
-async function run({ client, project, leadAccountId, dryRun }) {
+export class AdminRequiredError extends Error {}
+
+async function run({ client, email, project, leadAccountId, dryRun }) {
   console.log(`Fleet provisioning — project ${project}${dryRun ? ' (dry run)' : ''}\n`);
+
+  // Creating custom fields is a global-admin operation. Jira answers a
+  // non-admin with a 400 whose text is usually translated, so a preflight keeps
+  // the failure legible and names the account that actually lacks the right.
+  const admin = await checkAdmin({ client });
+  if (!admin.ok) {
+    throw new AdminRequiredError(admin.message);
+  }
+  console.log(`Account: ${admin.displayName} (${admin.email || email}) — Jira administrator\n`);
 
   const existing = await client.request('GET', (tag) => tag`/rest/api/3/field`);
 

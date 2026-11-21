@@ -68,6 +68,37 @@ test('verify fails loudly when a field is missing', async () => {
   });
 });
 
+test('verify reports when the Claim screen is unconfigured, without failing', async () => {
+  // The fields exist, the transition exists, but the transition screen does not
+  // include them. That is survivable — the worker falls back — so the report
+  // notes it rather than declaring the tenant broken.
+  await withClient({ transitionFields: ['Summary'] }, async ({ mock, client }) => {
+    mock.addTicket({ key: 'FLT-410', status: 'Ready for Build' });
+    const lines = [];
+    const ok = await verify({ client, project: 'FLT', log: (l) => lines.push(l) });
+
+    assert.equal(ok, true, lines.join('\n'));
+    const note = lines.find((l) => l.includes('note') && l.includes('not on the Claim screen'));
+    assert.ok(note, lines.join('\n'));
+    assert.match(note, /Fleet Worker/);
+    assert.ok(lines.some((l) => l.includes('the worker will still claim')));
+    assert.ok(lines.some((l) => l.includes('makes the claim atomic')));
+  });
+});
+
+test('verify says so when the Claim screen is fully configured', async () => {
+  await withClient({}, async ({ mock, client }) => {
+    mock.addTicket({ key: 'FLT-411', status: 'Ready for Build' });
+    const lines = [];
+    const ok = await verify({ client, project: 'FLT', log: (l) => lines.push(l) });
+
+    assert.equal(ok, true, lines.join('\n'));
+    assert.ok(lines.some((l) => l.includes('ok') && l.includes('"Claim" accepts Fleet Worker')), lines.join('\n'));
+    assert.ok(lines.some((l) => l.includes('ok') && l.includes('"Claim" accepts Fleet Lease')));
+    assert.ok(lines.some((l) => l.includes('Claim is atomic')));
+  });
+});
+
 test('verify fails when a workflow status is missing', async () => {
   // A status the workflow does not have makes a JQL query fail, which is how a
   // mis-authored workflow shows up. Take one away and the board is no longer
