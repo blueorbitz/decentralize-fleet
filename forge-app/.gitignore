@@ -1,0 +1,5 @@
+node_modules/
+src/static/issue-panel/node_modules/
+src/static/issue-panel/dist/
+.env
+*.log

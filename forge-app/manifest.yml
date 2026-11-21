@@ -1,0 +1,41 @@
+modules:
+  jira:issuePanel:
+    - key: fleet-issue-panel
+      resource: fleet-panel
+      resolver:
+        function: panel-resolver
+      title: Fleet
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+      viewportSize: large
+  webtrigger:
+    - key: fleet-mcp
+      function: mcp-handler
+      urlFormat: v2
+      response:
+        type: dynamic
+  scheduledTrigger:
+    - key: fleet-lease-reaper
+      function: reaper-handler
+      interval: fiveMinute
+  function:
+    - key: panel-resolver
+      handler: backend/index.handler
+    - key: mcp-handler
+      handler: backend/index.mcpHandler
+      timeoutSeconds: 55
+    - key: reaper-handler
+      handler: backend/index.reaperHandler
+      timeoutSeconds: 120
+resources:
+  - key: fleet-panel
+    path: src/static/issue-panel/dist
+app:
+  runtime:
+    name: nodejs24.x
+  # Placeholder. `forge register` replaces this with the app id it creates for
+  # your account; nothing else in the app depends on the value.
+  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+permissions:
+  scopes:
+    - read:jira-work
+    - write:jira-work

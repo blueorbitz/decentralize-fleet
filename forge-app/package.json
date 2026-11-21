@@ -1,0 +1,24 @@
+{
+  "name": "fleet-forge-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Forge app half of the decentralized AI development fleet: Jira issue panel, MCP webtrigger, lease reaper.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build:ui": "cd src/static/issue-panel && npm install --include=dev && npm run build",
+    "provision": "node scripts/provision.mjs",
+    "verify": "node scripts/verify-setup.mjs"
+  },
+  "dependencies": {
+    "@forge/api": "^8.5.0",
+    "@forge/resolver": "^2.0.2"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "yaml": "^2.9.1"
+  }
+}

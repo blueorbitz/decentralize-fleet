@@ -8,7 +8,10 @@
       "Shell(cmdc:*)",
       "Shell(findstr:*)",
       "Shell(node spawn-probe.mjs)",
-      "Shell(node --test)"
+      "Shell(node --test)",
+      "powershell",
+      "mcp__forge__search-forge-docs",
+      "mcp__forge__fetch-api-operation"
     ],
     "deny": [],
     "defaultMode": "default"

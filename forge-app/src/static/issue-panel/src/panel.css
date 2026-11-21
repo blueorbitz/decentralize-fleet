@@ -1,0 +1,201 @@
+// Panel styling. Every value is an Atlassian Design System token custom
+// property (--ds-*), which Custom UI resolves once `view.theme.enable()` has
+// been called. No hexes, no palette names: the panel themes itself.
+:root {
+  font: var(--ds-font-body);
+}
+
+.fleet-root {
+  font: var(--ds-font-body);
+  color: var(--ds-text);
+  background-color: var(--ds-surface);
+  padding-block: var(--ds-space-150);
+}
+
+.fleet-header {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  padding-bottom: var(--ds-space-100);
+}
+
+.fleet-title {
+  font: var(--ds-font-heading-small);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+
+.fleet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--ds-space-150) var(--ds-space-200);
+  padding-block: var(--ds-space-150);
+}
+
+.fleet-field-label {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--ds-space-025);
+}
+
+.fleet-field-value {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-text);
+  overflow-wrap: anywhere;
+}
+
+.fleet-mono {
+  font: var(--ds-font-code);
+}
+
+.fleet-faint {
+  color: var(--ds-text-subtlest);
+}
+
+.fleet-ok {
+  color: var(--ds-text-success);
+}
+
+.fleet-warn {
+  color: var(--ds-text-warning);
+}
+
+.fleet-danger {
+  color: var(--ds-text-danger);
+}
+
+.fleet-banner {
+  font: var(--ds-font-body);
+  color: var(--ds-text);
+  background-color: var(--ds-background-information-subtle);
+  border: var(--ds-border-width) solid var(--ds-border-information);
+  border-radius: var(--ds-radius-small);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  margin-block: var(--ds-space-100);
+}
+
+.fleet-log {
+  font: var(--ds-font-code);
+  color: var(--ds-text-subtle);
+  background-color: var(--ds-surface-sunken);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-small);
+  margin: var(--ds-space-0);
+  max-height: 220px;
+  overflow-y: auto;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  white-space: pre-wrap;
+}
+
+.fleet-log-line {
+  display: block;
+}
+
+.fleet-log-author {
+  color: var(--ds-text-subtlest);
+}
+
+.fleet-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+  padding-top: var(--ds-space-150);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+/* Status pill: the lozenge pattern rendered from tokens. */
+.fleet-pill {
+  display: inline-flex;
+  align-items: center;
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-bold);
+  border-radius: var(--ds-radius-xsmall);
+  padding: 1px var(--ds-space-050);
+  white-space: nowrap;
+}
+
+.fleet-pill--neutral {
+  color: var(--ds-text-subtle);
+  background-color: var(--ds-background-neutral);
+}
+
+.fleet-pill--information {
+  color: var(--ds-text-information);
+  background-color: var(--ds-background-information);
+}
+
+.fleet-pill--warning {
+  color: var(--ds-text-warning);
+  background-color: var(--ds-background-warning);
+}
+
+.fleet-pill--discovery {
+  color: var(--ds-text-discovery);
+  background-color: var(--ds-background-discovery);
+}
+
+.fleet-pill--success {
+  color: var(--ds-text-success);
+  background-color: var(--ds-background-success);
+}
+
+.fleet-pill--danger {
+  color: var(--ds-text-danger);
+  background-color: var(--ds-background-danger);
+}
+
+.fleet-ac {
+  list-style: none;
+  margin: var(--ds-space-0);
+  padding: var(--ds-space-0);
+  display: grid;
+  gap: var(--ds-space-075);
+}
+
+.fleet-ac-item {
+  display: flex;
+  gap: var(--ds-space-075);
+  align-items: flex-start;
+  font: var(--ds-font-body);
+  color: var(--ds-text);
+}
+
+.fleet-ac-box {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-block-start: 3px;
+  border: var(--ds-border-width) solid var(--ds-border-input);
+  border-radius: var(--ds-radius-xsmall);
+}
+
+.fleet-ac-box--done {
+  background-color: var(--ds-background-success-bold);
+  border-color: var(--ds-background-success-bold);
+}
+
+.fleet-label {
+  display: inline-block;
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-accent-purple);
+  background-color: var(--ds-background-accent-purple-subtlest);
+  border-radius: var(--ds-radius-xsmall);
+  padding: 1px var(--ds-space-050);
+  margin-inline-end: var(--ds-space-050);
+}
+
+.fleet-error {
+  font: var(--ds-font-body);
+  color: var(--ds-text-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fleet-actions,
+  .fleet-banner {
+    transition: none;
+  }
+}

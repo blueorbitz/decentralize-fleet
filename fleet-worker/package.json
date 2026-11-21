@@ -18,6 +18,8 @@
   "scripts": {
     "test": "node --test test/*.test.js",
     "start": "node bin/fleet-worker.js",
+    "demo": "node scripts/demo.mjs",
+    "mock:fleet": "node scripts/mock-fleet.mjs",
     "smoke:cmdc": "node scripts/cmdc-smoke.mjs"
   },
   "keywords": [

@@ -121,6 +121,23 @@ I. Scope control
 
 ## Open Human Decisions
 
+> **Delivered 2026-11-21.** The Forge app is built in [`forge-app/`](../../forge-app/README.md)
+> as a deploy-ready repo. Decisions taken during implementation:
+>
+> - **Modules: core only.** `jira:issuePanel`, `webtrigger`, `scheduledTrigger`
+>   (`fiveMinute`). The Rovo modules (`rovo:agent`, `action`, `rovo:skill`) are
+>   **not declared** — they need Rovo entitlement on the tenant and would make a
+>   plain `forge deploy` fail, so the Rovo bonus track stays a follow-up.
+> - **Panel: Custom UI on the Atlassian Design System**, not UI Kit, so it can
+>   match the prototype's layout. Token-based (`--ds-*`), themed via
+>   `view.theme.enable()`.
+> - **Not deployed.** Nothing was registered or installed against a tenant; the
+>   repo is verified locally (72 tests) and `forge register` is the operator's step.
+> - **Jira setup is scripted where possible.** `scripts/provision.mjs` creates the
+>   five `Fleet *` fields and the `FLT` Kanban project, then prints the parts
+>   only an admin can do (screen attachment, workflow authoring). See Low #7 and
+>   the workflow table in the app README.
+
 1. **Where the substance lives** (Low #1): confirm "app owns the coordination protocol + agent layer, workers stay dumb", or accept a thinner app and risk the judging bar.
 2. ~~**Deep harness pick**~~ RESOLVED 2026-11-15, **REVISED same day**: **GitHub Copilot** as the deep integration (Copilot CLI, non-interactive/Autopilot mode), chosen for enterprise/professional optics over Command Code. Kiro CLI stays a stubbed follow-up adapter. This drops the earlier "only harnesses we own" constraint — Copilot access is now a prerequisite — and it pairs a GitHub harness with the Bitbucket git host.
 3. **Which MCP bonus is actually judged** (Low #3): read the Codegeist 2026 rules verbatim before committing to webtrigger-MCP vs `rovo:mcp`.

@@ -24,7 +24,7 @@ and the flows in [`docs/grill/dfd-jira-ai-fleet.html`](../docs/grill/dfd-jira-ai
 | Lease reaper (`reap`) | implemented, tested |
 | Adapters: `cmdc` (real), `copilot`, `kiro` (stub), `script` | implemented; `cmdc` proven by a live smoke test |
 | Fleet MCP server (`fleet-mcp`, stdio) | implemented, tested |
-| Forge app (issue panel, Rovo "Fleet Steward", scheduled reaper, webtrigger) | **not built here** — needs an Atlassian Forge app + a Jira Cloud tenant |
+| Forge app (issue panel, scheduled reaper, MCP webtrigger) | implemented, tested — see [`../forge-app`](../forge-app/README.md) |
 
 ## Layout
 
@@ -116,6 +116,8 @@ boundary).
 
 ```sh
 npm test            # unit + integration (mock Jira, real git) — no network
+npm run demo        # the whole loop offline: happy path, crash, retry budget
+npm run mock:fleet  # a live offline fleet to point the real CLI at
 npm run smoke:cmdc  # drives the real cmdc CLI through the whole protocol
 ```
 
