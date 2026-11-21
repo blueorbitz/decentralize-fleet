@@ -163,6 +163,7 @@ export function loadConfig(argv = process.argv.slice(2), env = process.env) {
       repoSlug: pick(args, env, 'bb-repo', 'FLEET_BB_REPO'),
       username: pick(args, env, 'bb-username', 'FLEET_BB_USERNAME'),
       appPassword: pick(args, env, 'bb-app-password', 'FLEET_BB_APP_PASSWORD'),
+      authMode: pick(args, env, 'bb-auth', 'FLEET_BB_AUTH', 'auto'),
     },
     logFile: pick(args, env, 'log', 'FLEET_LOG'),
   };

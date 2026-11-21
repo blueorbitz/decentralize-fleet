@@ -80,6 +80,29 @@ constants — lease refresh 5 min, stale 15 min, run timeout 2h, retry budget 1,
 | `--git-host` + `--bb-*` | `FLEET_GIT_HOST`, `FLEET_BB_*` | `bitbucket` |
 | `--once` | — | loop; `--once` runs a single poll cycle |
 
+### Bitbucket credentials
+
+The PR host accepts the two credential shapes Bitbucket Cloud supports, and they
+are not interchangeable — sending one as the other is a silent 401:
+
+| Credential | Header | Needs |
+|---|---|---|
+| repository / workspace access token (`ATCT…`, `ATBB…`) | `Authorization: Bearer` | the token alone |
+| app password | `Authorization: Basic` | a username |
+
+`FLEET_BB_AUTH` (`auto` by default) picks by the token's shape, so a repository
+access token needs no username. Force one with `FLEET_BB_AUTH=bearer|basic`.
+A 401 from the host now names the shape it sent and this setting.
+
+If a branch already has an open PR — a requeued run retrying the same ticket —
+`createPullRequest` returns that PR instead of failing with Bitbucket's 409, so a
+retry cannot turn a good run into a `Failed` ticket.
+
+`FLEET_BB_*` authenticates the **REST API only**. A `git push` is a separate
+credential: either an SSH key for an `git@bitbucket.org:` remote, or a remote URL
+that carries a token (`https://x-token-auth:<token>@bitbucket.org/...`). `--check`
+prints the host it resolved, but it cannot verify that push will succeed.
+
 ## Run protocol
 
 1. **Poll** — JQL `project = FLT AND status = "Ready for Build" ORDER BY priority DESC, created ASC`.

@@ -715,6 +715,8 @@ Things that should *not* happen:
 | `fleet-run` exits 3 | Jira rejected the token; `JIRA_EMAIL` and `JIRA_TOKEN` must be the same account |
 | `fleet-run` exits 4 | the Fleet fields are missing on the tenant — run `provision.mjs` |
 | `fleet-run` says "PR host: local" unexpectedly | Bitbucket credentials are incomplete, so PRs are recorded locally instead of opened |
+| Bitbucket returns `401` for a repository access token | access tokens (`ATCT…`/`ATBB…`) must be sent as `Bearer`; only app passwords use `Basic username:password`. Auto-detected from the token, and a mismatch names it — force with `FLEET_BB_AUTH=bearer\|basic` |
+| `git push` fails although PR creation works | `FLEET_BB_*` authenticates the REST API, not git. Use an SSH remote (`git@bitbucket.org:...`) with a key, or a remote URL carrying a token |
 | Panel blank or unstyled | `npm run build:ui` was not run before `forge deploy` (Level 3) |
 | Panel: "The Fleet panel could not load this ticket" | field variables are display names, not `customfield_*` (5.5) |
 | Panel shows a stale lease forever | the reaper is not running — check the scheduled trigger deployed |
@@ -780,6 +782,14 @@ Stated plainly so you know what to trust:
   and a ticket reached `In Review`.
 - `forge deploy` has been run once against a real app registration and succeeds
   after the `timeoutSeconds` fix; `forge install` has not been run.
-- Level 5 has **not** been run against a live tenant — nothing was registered or
+- **Bitbucket PR host (C7) verified live** against `captain-sage/fleet-test`:
+  a real scratch branch was pushed and PR #2 opened through `BitbucketClient`
+  directly; then the worker's own `runTicket` protocol ran end to end with the
+  live host, pushing `FLT-429359-…` and landing PR #3 with the ticket
+  `In Review`. A second `createPullRequest` for the same branch reused the open
+  PR instead of hitting Bitbucket's 409. The credential is a repository access
+  token, which only works as `Bearer` — the previous Basic-only client 401'd.
+- Level 5 has **not** been run against a live Jira tenant — the live runs above
+  used the in-process Jira mock for the board half. Nothing was registered or
   installed during development. The commands and the admin steps are the parts
   that need your account.

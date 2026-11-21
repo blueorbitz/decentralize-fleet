@@ -88,9 +88,15 @@ export function resolveOperatorConfig({ env = process.env, dotenv = {}, cwd = pr
     repoSlug: get('FLEET_BB_REPO', 'BITBUCKET_REPO'),
     username: get('FLEET_BB_USERNAME', 'BITBUCKET_USERNAME'),
     appPassword: get('FLEET_BB_APP_PASSWORD', 'BITBUCKET_APP_PASSWORD'),
+    authMode: get('FLEET_BB_AUTH') || 'auto',
   };
+  // A repository access token is not tied to a username, so requiring one here
+  // would force operators to invent a fake value. Bearer needs only the token.
   const bitbucketConfigured = Boolean(
-    bitbucket.workspace && bitbucket.repoSlug && bitbucket.username && bitbucket.appPassword,
+    bitbucket.workspace &&
+      bitbucket.repoSlug &&
+      bitbucket.appPassword &&
+      (bitbucket.username || bitbucket.authMode === 'bearer' || /^(ATCT|ATBB)/i.test(bitbucket.appPassword)),
   );
 
   return {
@@ -167,6 +173,7 @@ export function toWorkerArgs({ cfg, fieldIds, extra = [] }) {
   if (bb.repoSlug) args.push('--bb-repo', bb.repoSlug);
   if (bb.username) args.push('--bb-username', bb.username);
   if (bb.appPassword) args.push('--bb-app-password', bb.appPassword);
+  if (bb.authMode && bb.authMode !== 'auto') args.push('--bb-auth', bb.authMode);
 
   return [...args, ...extra];
 }

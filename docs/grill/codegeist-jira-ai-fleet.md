@@ -2,6 +2,7 @@
 
 Date: 2026-11-15
 Method: Auto-grill — principle-based delegation
+Related: [`fleet-settings-page.md`](./fleet-settings-page.md) — 2026-11-21, per-project settings page replacing `forge variables` for admin-facing config
 
 > **Review first:** the 7 LOW-confidence rows below are where the principles were silent or in tension — they are the decisions a human most needs to review. See "Open Human Decisions" at the end.
 

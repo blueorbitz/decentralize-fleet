@@ -39,6 +39,7 @@ Fleet field ids (default to the human names; set to customfield_* on real Jira):
 Bitbucket PR host:
   --git-host <kind>   bitbucket | local (env FLEET_GIT_HOST, default bitbucket)
   --bb-workspace --bb-repo --bb-username --bb-app-password
+  --bb-auth <mode>    auto | bearer | basic (env FLEET_BB_AUTH, default auto)
 
 Everything else has a documented default (lease 5m/15m, run timeout 2h, retry 1,
 poll 30-60s) — see docs/grill/codegeist-jira-ai-fleet.md.

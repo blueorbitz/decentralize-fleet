@@ -15,13 +15,21 @@ import { makeGitWorkspace } from './helpers/git-fixture.js';
 const root = path.resolve(import.meta.dirname, '..');
 
 function runFleetRun(args, { env = {}, cwd = root } = {}) {
+  // These runs are meant to be fully offline. An operator's real FLEET_BB_* (or
+  // FLEET_GIT_HOST) in the ambient environment made the wrapper resolve the real
+  // Bitbucket host, so a run with no changes then failed against the live API
+  // instead of the local host. Drop them unless a test sets them itself.
+  const ambient = { ...process.env };
+  for (const key of Object.keys(ambient)) {
+    if (/^(FLEET_BB_|BITBUCKET_)/.test(key) || key === 'FLEET_GIT_HOST') delete ambient[key];
+  }
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       [path.join(root, 'bin', 'fleet-run.js'), ...args],
       // FLEET_NO_ENV keeps a developer's real .env out of these runs. Tests that
       // are about .env handling opt back in explicitly.
-      { cwd, env: { ...process.env, FLEET_NO_ENV: '1', ...env } },
+      { cwd, env: { ...ambient, FLEET_NO_ENV: '1', ...env } },
       (err, stdout, stderr) => resolve({ code: err?.code ?? 0, stdout, stderr }),
     );
   });
