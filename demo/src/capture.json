@@ -1,0 +1,21 @@
+{
+  "takes": {
+    "dryBoard": {
+      "src": "footage/dry-board.webm",
+      "events": [
+        {
+          "at": 3035,
+          "kind": "hover",
+          "x": 640,
+          "y": 360
+        }
+      ],
+      "durationMs": 4954,
+      "url": "captain-sage.atlassian.net/jira/software/projects/FLT/boards",
+      "offsetMs": 0,
+      "trimBeforeSeconds": 0
+    }
+  },
+  "offsetMs": {},
+  "trim": {}
+}

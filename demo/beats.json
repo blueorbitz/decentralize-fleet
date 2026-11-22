@@ -1,0 +1,98 @@
+{
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "beats": [
+    {
+      "id": "S01",
+      "label": "Two kinds of AI coding",
+      "seconds": 12,
+      "caption": "Two kinds of AI coding",
+      "narration": "Every team now has two kinds of AI coding. One runs on your laptop. The other runs in someone else's cloud. What if it ran on your machines — all of them?"
+    },
+    {
+      "id": "S02",
+      "label": "The two extremes",
+      "seconds": 38,
+      "caption": "One person, one machine — or a machine that knows nothing",
+      "narration": "Today it's one or the other. Either an engineer picks up a ticket and drives an agent locally. Great context — their repo, their credentials, their tools. But it's one person, one machine, one ticket at a time. Or you hand the ticket to a cloud agent. Parallel and hands-off — but it starts from nothing. Fresh container, fresh clone, no internal packages, and no way to use a model that never leaves your network."
+    },
+    {
+      "id": "S03",
+      "label": "The gap",
+      "seconds": 15,
+      "caption": "The missing middle",
+      "narration": "The gap is agentic work that runs on hardware you already own and already configured. Spare laptops, build boxes, a desktop with a GPU — without a human babysitting every run."
+    },
+    {
+      "id": "S04",
+      "label": "The solution",
+      "seconds": 30,
+      "caption": "Decentralize Fleet",
+      "narration": "This is Decentralize Fleet. Install the Forge app in Jira. Start the fleet worker on any machine. That's the whole install. Workers poll the board for tickets in Ready for Build. When one appears, a worker claims it — and claiming is a Jira status transition, so exactly one machine can win. Jira is the queue. There's no scheduler in the middle. And because the model runs on your machine, the data can stay there too."
+    },
+    {
+      "id": "S05",
+      "label": "Dispatch",
+      "seconds": 20,
+      "caption": "Dispatch to fleet",
+      "narration": "A real ticket, Triaged. I open the Fleet panel and dispatch it. Watch the button — it moves the ticket to Ready for Build and stops. The panel never claims on a worker's behalf."
+    },
+    {
+      "id": "S06",
+      "label": "One claim, two machines",
+      "seconds": 30,
+      "caption": "The board itself is the lock",
+      "narration": "Two machines are already polling. Both see the ticket in the same second. Worker A claims it first — that's a status transition, and Jira rejects the second one. Worker B reads the rejection, re-reads the ticket, sees it's taken, and moves on. No lock table. No coordination service. The board itself is the lock."
+    },
+    {
+      "id": "S07",
+      "label": "Live state",
+      "seconds": 20,
+      "caption": "Worker, lease, run log",
+      "narration": "Back in Jira: which worker holds it, the lease counting down, and the run log filling in. The worker writes progress as comments, so the ticket history is the audit trail."
+    },
+    {
+      "id": "S08",
+      "label": "Human review gate",
+      "seconds": 15,
+      "caption": "The fleet stops at the pull request",
+      "narration": "Minutes later: branch pushed, pull request open with the change, the tests green, the acceptance criteria ticked. In Review. The fleet stops there — a human merges."
+    },
+    {
+      "id": "S09",
+      "label": "Settings",
+      "seconds": 25,
+      "caption": "Configuration lives in Jira",
+      "narration": "Configuration belongs in Jira. Each project gets a Fleet settings page: field mappings, lease timings, MCP tokens, and a worker config you paste on any machine. Validate before you save; workers pick it up on restart."
+    },
+    {
+      "id": "S10",
+      "label": "Under the hood",
+      "seconds": 20,
+      "caption": "Two halves, one rule",
+      "narration": "Under the hood: two halves, one rule. The Forge app lives in Atlassian's cloud — the panel and the repair loop. The worker runs on your machine. They never call each other. Both write to Jira, and Jira serialises it."
+    },
+    {
+      "id": "S11",
+      "label": "Claim is a compare-and-swap",
+      "seconds": 20,
+      "caption": "One transition, one winner",
+      "narration": "A claim is a single transition carrying the worker and the lease. That's a compare-and-swap: whoever transitions first wins, and the loser gets a rejected request. The winner re-reads to confirm, then refreshes the lease every five minutes."
+    },
+    {
+      "id": "S12",
+      "label": "Any agent, one contract",
+      "seconds": 20,
+      "caption": "The agent is a plug-in",
+      "narration": "The agent is a plug-in. The worker hands it a ticket as JSON and reads a result back — so Copilot, OpenCode, Claude Code or Codex is a thin translator each. Whatever is installed on that machine is what runs."
+    },
+    {
+      "id": "S13",
+      "label": "Put your fleet to work",
+      "seconds": 20,
+      "caption": "Install the app. Start a worker.",
+      "narration": "This is the missing middle: cloud parallelism without cloud lock-in. Your hardware, your toolchain, your credentials, your model — and a board that coordinates it. Every idle machine in your office is capacity you already paid for. Install the app. Start a worker. Put your fleet to work."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "site": "https://captain-sage.atlassian.net",
+  "project": "FLT",
+  "issue": "FLT-101",
+  "urls": {
+    "board": "https://captain-sage.atlassian.net/jira/software/projects/FLT/boards",
+    "issue": "https://captain-sage.atlassian.net/browse/FLT-101",
+    "settings": ""
+  },
+  "selectors": {
+    "boardColumn": "[data-testid='software-board.board-column'], [data-testid='platform-board-kit.ui.column']",
+    "issueCard": "[data-testid='platform-board-kit.ui.card.card'], [data-testid='software-board.board-card']",
+    "dispatchButton": "Dispatch to fleet",
+    "testConnectionButton": "Test connection",
+    "prLink": "a[href*='/pull-requests/']"
+  },
+  "notes": {
+    "settings": "Forge jira:projectSettingsPage. Open it once and paste the URL here (project settings > Fleet settings). Empty means the settings take is skipped.",
+    "panel": "The Fleet panel renders inside a Forge iframe; the capture script finds it by its text, not by a fixed selector."
+  }
+}

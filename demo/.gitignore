@@ -5,3 +5,8 @@ dist
 
 # Ignore the output video from Git but not videos you import into src/.
 out
+
+# Capture artifacts: the saved Jira session is a credential and must never be
+# committed, and the raw takes are large binaries that are regenerated.
+.auth
+public/footage
