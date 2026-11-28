@@ -7,9 +7,29 @@ modules:
       title: Fleet
       icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
       viewportSize: large
+  jira:projectPage:
+    - key: fleet-page
+      resource: fleet-page
+      resolver:
+        function: page-resolver
+      title: Fleet
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
+  jira:projectSettingsPage:
+    - key: fleet-settings
+      resource: fleet-settings-ui
+      resolver:
+        function: settings-resolver
+      render: native
+      title: Fleet settings
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   webtrigger:
     - key: fleet-mcp
       function: mcp-handler
+      urlFormat: v2
+      response:
+        type: dynamic
+    - key: fleet-heartbeat
+      function: heartbeat-handler
       urlFormat: v2
       response:
         type: dynamic
@@ -28,9 +48,20 @@ modules:
     - key: reaper-handler
       handler: backend/index.reaperHandler
       timeoutSeconds: 120
+    - key: settings-resolver
+      handler: backend/settings.settingsHandler
+    - key: page-resolver
+      handler: backend/index.pageHandler
+    - key: heartbeat-handler
+      handler: backend/index.heartbeatHandler
 resources:
   - key: fleet-panel
     path: src/static/issue-panel/dist
+  # UI Kit renders from source; there is no build step for the settings page.
+  - key: fleet-settings-ui
+    path: src/static/settings/index.jsx
+  - key: fleet-page
+    path: src/static/fleet-page/dist
 app:
   runtime:
     name: nodejs24.x
@@ -39,3 +70,4 @@ permissions:
   scopes:
     - read:jira-work
     - write:jira-work
+    - storage:app

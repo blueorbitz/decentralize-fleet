@@ -12,3 +12,16 @@ dist/
 
 # Logs from worker runs.
 *.log
+
+# Capture artefacts: the saved Jira session is a credential, and the raw takes
+# and worker logs contain the real tenant address and bot email. They are
+# regenerated from the tenant, so nothing under public/ belongs in git.
+demo/.auth/
+demo/public/
+
+# Remotion build output and review stills.
+demo/out/
+demo/.remotion/
+
+# A checked-out worker workspace, cloned from the real remote.
+fleet-repo/fleet-test/

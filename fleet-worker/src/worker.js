@@ -10,6 +10,7 @@ import { JiraClient, JiraError, isLeaseStale } from './jira.js';
 import { GitClient, branchFor } from './git.js';
 import { createGitHost } from './git-host.js';
 import { runAdapter } from './adapter-runner.js';
+import { createHeartbeat } from './heartbeat.js';
 import { STATUS, jqlFor } from './config.js';
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -28,7 +29,7 @@ function tail(file, lines = 20) {
 }
 
 export class Worker {
-  constructor({ cfg, logger, jira, git, gitHost, sleep = defaultSleep, now = () => Date.now(), clock = () => new Date() }) {
+  constructor({ cfg, logger, jira, git, gitHost, heartbeat, sleep = defaultSleep, now = () => Date.now(), clock = () => new Date() }) {
     this.cfg = cfg;
     this.log = logger;
     this.jira = jira || new JiraClient({
@@ -44,6 +45,17 @@ export class Worker {
     this.now = now;
     this.clock = clock;
     this.workerId = cfg.worker.id;
+    // `heartbeat` is injectable so tests can assert state transitions without
+    // an HTTP endpoint. Passing null disables presence reporting.
+    this.heartbeat =
+      heartbeat !== undefined
+        ? heartbeat
+        : createHeartbeat({
+            ...cfg.heartbeat,
+            workerId: cfg.worker.id,
+            adapter: cfg.worker.adapter,
+            logger,
+          });
     this.stopping = false;
   }
 
@@ -73,6 +85,9 @@ export class Worker {
       } catch (err) {
         this.log.error(`run of ${ticket.key} errored: ${err.message}`);
         outcome = { status: 'failed', reason: err.message };
+      } finally {
+        // Covers every exit from runTicket: success, failure, requeue, lost.
+        this.heartbeat?.setState('idle');
       }
       if (outcome.status === 'completed') summary.completed += 1;
       else if (outcome.status === 'requeued') summary.requeued += 1;
@@ -84,16 +99,21 @@ export class Worker {
 
   async runLoop() {
     const { pollMinMs, pollMaxMs } = this.cfg.worker;
-    while (!this.stopping) {
-      try {
-        await this.pollOnce();
-      } catch (err) {
-        this.log.error(`poll failed: ${err.message}`);
+    this.heartbeat?.start();
+    try {
+      while (!this.stopping) {
+        try {
+          await this.pollOnce();
+        } catch (err) {
+          this.log.error(`poll failed: ${err.message}`);
+        }
+        if (this.stopping) break;
+        const wait = pollMinMs + Math.floor(Math.random() * Math.max(1, pollMaxMs - pollMinMs));
+        this.log.debug(`sleeping ${Math.round(wait / 1000)}s`);
+        await this.sleep(wait);
       }
-      if (this.stopping) break;
-      const wait = pollMinMs + Math.floor(Math.random() * Math.max(1, pollMaxMs - pollMinMs));
-      this.log.debug(`sleeping ${Math.round(wait / 1000)}s`);
-      await this.sleep(wait);
+    } finally {
+      await this.heartbeat?.stop();
     }
     this.log.info('worker stopped');
   }
@@ -138,6 +158,7 @@ export class Worker {
       return { status: 'abandoned' };
     }
     this.log.info(`verify ok — fleet_worker=${this.workerId}`);
+    this.heartbeat?.setState('running', key);
     await this.jira.comment(key, `Fleet worker \`${this.workerId}\` claimed this ticket (lease ${claimedAt.toISOString()}).`);
 
     // Step 4 — snapshot the ticket at claim time.

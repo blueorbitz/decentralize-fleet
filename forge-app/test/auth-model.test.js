@@ -50,13 +50,13 @@ test('only scripts and tests use Basic auth', () => {
 test('FLEET_MCP_TOKEN is a shared secret, not an Atlassian credential', () => {
   const trigger = fs.readFileSync(path.join(root, 'src/mcp-trigger.js'), 'utf8');
   // It is compared against an inbound bearer header, never sent to Jira.
-  assert.match(trigger, /Bearer \$\{token\}/);
+  assert.match(trigger, /Bearer\\s\+/, 'the trigger compares a bearer header');
   assert.doesNotMatch(trigger, /requestJira|basicTransport/);
 });
 
 test('the manifest declares the scopes the app actually uses', () => {
   const yaml = fs.readFileSync(path.join(root, 'manifest.yml'), 'utf8');
-  for (const scope of ['read:jira-work', 'write:jira-work']) {
+  for (const scope of ['read:jira-work', 'write:jira-work', 'storage:app']) {
     assert.ok(yaml.includes(scope), `manifest.yml is missing ${scope}`);
   }
 });

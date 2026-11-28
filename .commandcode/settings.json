@@ -11,7 +11,9 @@
       "Shell(node --test)",
       "powershell",
       "mcp__forge__search-forge-docs",
-      "mcp__forge__fetch-api-operation"
+      "mcp__forge__fetch-api-operation",
+      "mcp__forge__list-ui-kit-components",
+      "mcp__forge__get-ui-kit-component-reference"
     ],
     "deny": [],
     "defaultMode": "default"

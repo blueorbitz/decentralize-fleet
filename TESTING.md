@@ -74,27 +74,29 @@ npm install          # first time only
 npm test
 ```
 
-**You should see:** `# pass 72` and `# fail 0`.
+**You should see:** `# pass 116` and `# fail 0`.
 
 What these cover, so you know what you are trusting:
 
 | Test file | Covers |
 |---|---|
 | `jira.test.js` | claim-as-CAS, losing a claim race, dispatch, requeue, report |
-| `reaper.test.js` | stale-lease detection and the self-heal |
-| `mcp.test.js`, `mcp-http.test.js` | the five MCP tools, over real HTTP |
+| `reaper.test.js`, `reaper-multi.test.js` | stale-lease detection, the self-heal, and one pass per configured project |
+| `mcp.test.js`, `mcp-http.test.js`, `mcp-trigger-auth.test.js` | the five MCP tools, over real HTTP, and bearer → project |
 | `backend.test.js` | the three resolver functions the panel actually calls |
+| `settings.test.js`, `settings-ui.test.js` | the settings store/service/resolver, tokens, the permission gate, and the page model |
+| `setup-check.test.js` | the readiness checks a save and **Test connection** share |
 | `panel-model.test.js`, `panel-display.test.js` | what the panel renders |
 | `scripts.test.js`, `scripts-cli.test.js` | the provisioning scripts, run as real processes |
 | `contract.test.js` | **fails if the worker and this app disagree on a status, transition, field or timing** |
-| `manifest.test.js` | **fails if the manifest wires a handler that is not exported** |
+| `manifest.test.js` | **fails if the manifest wires a handler that is not exported, or the settings page is not UI Kit** |
 | `panel-styles.test.js` | **fails if a component renders a class the stylesheet does not style** |
 | `packaging.test.js` | **fails if the known npm packaging traps come back** |
 
-The four bold ones are the drift guards. They exist because these bugs are silent
+The bold ones are the drift guards. They exist because these bugs are silent
 otherwise — the app deploys fine and then does nothing.
 
-**Checkpoint:** `# pass 72`.
+**Checkpoint:** `# pass 116`.
 
 ---
 
@@ -450,7 +452,7 @@ and the app look transitions up *by name*, so a typo is a silent failure.
 `Finish` is human-only. `Failed -> Requeue` uses the same transition, so a
 failed run can be requeued from the panel.
 
-### 5.5 Configure the app (no Jira credentials needed)
+### 5.5 Configure the app — Project settings → Fleet settings
 
 The app does **not** hold a Jira API token. It calls Jira through Forge:
 
@@ -459,27 +461,45 @@ api.asApp().requestJira(...)   // Forge injects an installation-scoped token
 ```
 
 Those tokens come from the scopes declared in `manifest.yml`
-(`read:jira-work`, `write:jira-work`) and are minted per installation. There is
-nothing to paste in, and nothing to rotate.
+(`read:jira-work`, `write:jira-work`, `storage:app`) and are minted per
+installation. There is nothing to paste in, and nothing to rotate.
 
 What the app *does* need is **configuration** — the `customfield_XXXXX` ids of
-the five Fleet fields, because it has to know which field is "Fleet Worker". The
-script printed those ids:
+the five Fleet fields, because it has to know which field is "Fleet Worker".
+Those are now set on a page, not with `forge variables set`:
+
+1. `forge deploy` and `forge install` (below).
+2. Open the project → **Project settings → Apps → Fleet settings**.
+3. Fill in the project key and the five field ids the provisioning script
+   printed, then **Test connection** and **Save**.
+
+That page is the source of truth. It stores the config in Forge's key-value
+store (`storage:app`), the panel and the reaper read it per invocation, and it
+generates the worker's `.env` for you to copy. A project with no saved config is
+prefilled from environment variables, so an existing install keeps working until
+someone saves.
+
+#### CI/automation fallback
+
+The page is the normal path. For automation you can still supply the same values
+as app environment variables; they prefill a project that has never been saved.
 
 ```powershell
-$env:FLEET_MCP_TOKEN = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
-
 forge variables set FLEET_PROJECT FLT
 forge variables set FLEET_FIELD_WORKER customfield_XXXXX
 forge variables set FLEET_FIELD_LEASE customfield_XXXXX
 forge variables set FLEET_FIELD_BRANCH customfield_XXXXX
 forge variables set FLEET_FIELD_PR customfield_XXXXX
 forge variables set FLEET_FIELD_RETRY customfield_XXXXX
-forge variables set --encrypt FLEET_MCP_TOKEN $env:FLEET_MCP_TOKEN
 
 forge deploy
 forge install --site YOUR-SITE.atlassian.net --product Jira --confirm-scopes
 ```
+
+The MCP tokens are **not** environment variables: create them on the settings
+page (`MCP tokens → Generate token`), which keeps each one per project and
+revocable. The old single `FLEET_MCP_TOKEN` variable is accepted until the page
+is used, then per-project tokens replace it.
 
 There are three different things called "token" in this system. Only one is an
 Atlassian credential:
@@ -489,7 +509,7 @@ Atlassian credential:
 | *(none)* | Forge-minted installation token via `asApp()` | the app: panel, reaper, MCP tools |
 | `JIRA_ADMIN_TOKEN` | a real Jira API token from an admin account | `provision.mjs` only |
 | `FLEET_JIRA_TOKEN` | a real Jira API token from the Fleet Bot | the worker and `fleet-run` |
-| `FLEET_MCP_TOKEN` | **not** an Atlassian credential — a shared secret you invent, so the public webtrigger URL is not open to anyone | the app, to authenticate incoming MCP calls |
+| *(MCP token)* | **not** an Atlassian credential — generated on the Fleet settings page, one per project | clients authenticating to the MCP webtrigger |
 
 > **`forge deploy` does not read `.env`** — and neither does `forge install`. The
 > app reads `forge variables set` at runtime; those are stored on Atlassian's
@@ -645,24 +665,26 @@ whole protocol through to a PR without needing a coding agent installed.
 
 
 **c)** Optional but recommended: exercise the MCP endpoint. Get its URL, then
-call it:
+call it. The token comes from **Fleet settings → MCP tokens → Generate token**
+(open **.mcp.json** on the row to copy it):
 
 ```powershell
 forge webtrigger create      # choose fleet-mcp
 ```
 
 ```powershell
+$token = '<the token you generated on the settings page>'
 $body = '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fleet_status","arguments":{}}}'
 
 Invoke-RestMethod -Method Post -Uri '<the webtrigger url>' `
-  -Headers @{ Authorization = "Bearer $env:FLEET_MCP_TOKEN" } `
+  -Headers @{ Authorization = "Bearer $token" } `
   -ContentType 'application/json' -Body $body |
   Select-Object -ExpandProperty result
 ```
 
 **You should see:** a JSON-RPC result whose content includes `active`, `queued`,
-`failed`. A `401` means the token does not match; a `503` means
-`FLEET_MCP_TOKEN` was never set (or was set after the last deploy).
+`failed`. A `401` means the token is not one this installation knows; a `503`
+means no project has been configured on the settings page yet.
 
 **d)** Exercise the self-heal. Kill the worker mid-run with **Ctrl-C**. After 15
 minutes the scheduled reaper requeues the ticket and leaves a comment. To test
@@ -720,8 +742,11 @@ Things that should *not* happen:
 | Panel blank or unstyled | `npm run build:ui` was not run before `forge deploy` (Level 3) |
 | Panel: "The Fleet panel could not load this ticket" | field variables are display names, not `customfield_*` (5.5) |
 | Panel shows a stale lease forever | the reaper is not running — check the scheduled trigger deployed |
-| MCP returns 401 | `FLEET_MCP_TOKEN` does not match the bearer header |
-| MCP returns 503 | `FLEET_MCP_TOKEN` unset, or set after the last deploy |
+| MCP returns 401 | the bearer is not a token on **Fleet settings → MCP tokens** (or it was revoked) |
+| MCP returns 503 | no project has been configured on the settings page yet |
+| Settings page says "Read-only" | your account lacks *Administer projects* on this project — a project admin can change it |
+| Save is refused with field/transition failures | **Test connection** shows the same checks; the ids or workflow are wrong (5.4) |
+| Panel or reaper ignores a saved setting | the panel and reaper read per invocation, but a running **worker** keeps its `.env` until it restarts |
 | `forge deploy` fails: "Function ... defines timeoutSeconds but is used by webtrigger" | only `consumer` and `scheduledTrigger` functions may set a timeout. Remove `timeoutSeconds` from the webtrigger function in `manifest.yml` |
 | `forge deploy` prints "new scopes or egress URLs" then exits 1 | not a failure — run `forge install --upgrade --site ... --product Jira` (5.5) |
 | `forge deploy` seems to ignore `.env` | it does not read `.env`. Load the values into the shell, then `forge variables set` from `$env:...` (5.5) |
@@ -752,7 +777,8 @@ cd ..\forge-app
 forge register fleet-app
 node scripts/provision.mjs --jira ... --email ... --token ... --project FLT --lead-account-id ...
 # ... manual screen + workflow steps ...
-forge variables set ... ; forge deploy ; forge install
+forge deploy ; forge install
+# open Project settings → Fleet settings, enter the ids, Test connection, Save
 node scripts/verify-setup.mjs --jira ... --email ... --token ...
 
 # Level 5.7 — run a worker (settings in fleet-worker\.env)
@@ -766,9 +792,14 @@ cd ..\fleet-worker
 
 Stated plainly so you know what to trust:
 
-- Levels 1-4 have been run and pass in this repo (53 worker tests, 81 app tests,
+- Levels 1-4 have been run and pass in this repo (53 worker tests, 116 app tests,
   panel build, real CLI against the offline fleet). The non-admin and
   bad-token diagnoses are covered by tests against a stub that refuses both.
+- The Fleet settings surface is verified offline: the store/service/resolver
+  against an in-memory store (tokens, the 0/1/many rule, the `ADMINISTER_PROJECTS`
+  gate), the readiness checks against the Jira mock, the multi-project reaper, and
+  the MCP bearer → project resolution. The UI Kit page compiles (esbuild) and
+  `forge lint` reports no errors; it has **not** been rendered in a live Jira.
 - The base branch is detected from the remote; verified end to end on a repo
   whose default is `master`, with no branch configured.
 - The claim fallback for unconfigured transition screens is covered at both

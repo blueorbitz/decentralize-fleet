@@ -1,0 +1,338 @@
+// Fleet page styling. Every value is an Atlassian Design System token custom
+// property, resolved after main.jsx calls view.theme.enable().
+:root {
+  font: var(--ds-font-body);
+}
+
+.fp-root {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--ds-space-300) var(--ds-space-300) var(--ds-space-500);
+  color: var(--ds-text);
+  background-color: var(--ds-surface);
+  font: var(--ds-font-body);
+}
+
+.fp-root--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+}
+
+.fp-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-200);
+  padding-bottom: var(--ds-space-200);
+  border-bottom: var(--ds-border-width) solid var(--ds-border);
+}
+
+.fp-title {
+  font: var(--ds-font-heading-medium);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+
+.fp-subtitle {
+  margin: var(--ds-space-050) 0 0;
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body);
+}
+
+.fp-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  flex-shrink: 0;
+}
+
+.fp-live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-050);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-text-success);
+}
+
+.fp-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--ds-background-success-bold);
+}
+
+.fp-updated {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+}
+
+.fp-small {
+  font: var(--ds-font-body-small);
+}
+
+.fp-faint {
+  color: var(--ds-text-subtlest);
+}
+
+/* ---- summary tiles ---------------------------------------------------- */
+
+.fp-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--ds-space-150);
+  padding-block: var(--ds-space-250);
+}
+
+.fp-tile {
+  position: relative;
+  padding: var(--ds-space-200);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-medium);
+  background-color: var(--ds-surface-raised);
+  cursor: default;
+  outline: none;
+}
+
+.fp-tile:focus-visible {
+  box-shadow: 0 0 0 2px var(--ds-border-focused);
+}
+
+.fp-tile--success {
+  border-color: var(--ds-border-success);
+  background-color: var(--ds-background-success-subtle);
+}
+
+.fp-tile--information {
+  border-color: var(--ds-border-information);
+  background-color: var(--ds-background-information-subtle);
+}
+
+.fp-tile-value {
+  font: var(--ds-font-heading-xlarge);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: 1.1;
+}
+
+.fp-tile-label {
+  margin-top: var(--ds-space-025);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-text-subtle);
+}
+
+.fp-avatars {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-050);
+  margin-top: var(--ds-space-150);
+  flex-wrap: wrap;
+}
+
+/* ---- machine chips ---------------------------------------------------- */
+
+.fp-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--ds-background-neutral-bold);
+  color: var(--ds-text-inverse);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-bold);
+  text-transform: uppercase;
+}
+
+.fp-avatar--more {
+  background-color: var(--ds-background-neutral);
+  color: var(--ds-text-subtle);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.fp-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  padding: var(--ds-space-100) var(--ds-space-150);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-small);
+  background-color: var(--ds-surface);
+  outline: none;
+}
+
+.fp-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--ds-border-focused);
+}
+
+.fp-chip--compact {
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.fp-chip--offline {
+  opacity: 0.72;
+}
+
+.fp-chip-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.fp-chip-machine {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fp-chip-id {
+  font: var(--ds-font-code);
+  font-size: 12px;
+  color: var(--ds-text-subtlest);
+}
+
+.fp-state {
+  flex-shrink: 0;
+  padding: 1px var(--ds-space-100);
+  border-radius: var(--ds-radius-xsmall);
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-bold);
+  background-color: var(--ds-background-neutral);
+  color: var(--ds-text-subtle);
+}
+
+.fp-state--running {
+  background-color: var(--ds-background-information-subtle);
+  color: var(--ds-text-information);
+}
+
+.fp-state--idle {
+  background-color: var(--ds-background-success-subtle);
+  color: var(--ds-text-success);
+}
+
+.fp-state--offline {
+  background-color: var(--ds-background-neutral);
+  color: var(--ds-text-subtlest);
+}
+
+/* ---- rosters ---------------------------------------------------------- */
+
+.fp-section {
+  padding-block: var(--ds-space-200);
+  border-top: var(--ds-border-width) solid var(--ds-border);
+}
+
+.fp-section--muted {
+  opacity: 0.85;
+}
+
+.fp-section-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-100);
+  margin-bottom: var(--ds-space-100);
+}
+
+.fp-section-title {
+  font: var(--ds-font-heading-small);
+  font-weight: var(--ds-font-weight-semibold);
+  margin: 0;
+}
+
+.fp-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 var(--ds-space-050);
+  border-radius: var(--ds-radius-xsmall);
+  background-color: var(--ds-background-neutral);
+  color: var(--ds-text-subtle);
+  font: var(--ds-font-body-small);
+  text-align: center;
+}
+
+.fp-rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: var(--ds-space-100);
+}
+
+.fp-empty {
+  margin-block: var(--ds-space-100);
+  padding: var(--ds-space-150);
+  border: var(--ds-border-width) solid var(--ds-border-information);
+  border-radius: var(--ds-radius-small);
+  background-color: var(--ds-background-information-subtle);
+  font: var(--ds-font-body);
+}
+
+.fp-empty code {
+  font: var(--ds-font-code);
+  padding: 0 3px;
+  border-radius: var(--ds-radius-xsmall);
+  background-color: var(--ds-background-neutral);
+}
+
+/* ---- hover cards ------------------------------------------------------ */
+
+.fp-hovercard {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 220px;
+  max-width: 340px;
+  padding: var(--ds-space-100) var(--ds-space-150);
+  border: var(--ds-border-width) solid var(--ds-border);
+  border-radius: var(--ds-radius-small);
+  background-color: var(--ds-surface-raised);
+  box-shadow: var(--ds-shadow-overlay, 0 8px 24px rgba(9, 30, 66, 0.22));
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+  white-space: normal;
+  pointer-events: none;
+}
+
+.fp-hovercard--tile {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
+.fp-hover-title {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text);
+  margin-bottom: 2px;
+}
+
+.fp-chip:hover > .fp-hovercard,
+.fp-chip:focus > .fp-hovercard,
+.fp-chip:focus-within > .fp-hovercard {
+  display: block;
+}
+
+.fp-tile:hover > .fp-hovercard--tile,
+.fp-tile:focus > .fp-hovercard--tile,
+.fp-tile:focus-within > .fp-hovercard--tile {
+  display: block;
+}
+
+/* A compact avatar lives inside the Online tile: show the machine's own card,
+   not the tile-wide list. */
+.fp-tile:has(.fp-chip:hover) > .fp-hovercard--tile,
+.fp-tile:has(.fp-chip:focus) > .fp-hovercard--tile {
+  display: none;
+}

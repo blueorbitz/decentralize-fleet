@@ -39,6 +39,21 @@ test('build:ui installs the panel with cd, not --prefix', () => {
   assert.match(script, /--include=dev/, 'NODE_ENV=production skips devDependencies, which vite lives in');
 });
 
+test('build:ui also builds the Fleet page', () => {
+  const script = read('package.json').scripts['build:ui'];
+  assert.match(script, /cd \.\.\/fleet-page/, 'the Fleet page must be built for the projectPage resource');
+  // Two installs, one per UI app.
+  assert.equal((script.match(/--include=dev/g) || []).length, 2);
+});
+
+test('the Fleet page is a self-contained UI app', () => {
+  const page = read('src/static/fleet-page', 'package.json');
+  const all = { ...page.dependencies, ...page.devDependencies };
+  assert.equal(all['fleet-forge-app'], undefined, 'the page must not link to the Forge app');
+  assert.ok(page.dependencies['@forge/bridge'], 'the page invokes the resolver through the bridge');
+  assert.equal(page.devDependencies['@compiled/vite-plugin'], '2.0.0');
+});
+
 test('the compiled plugin and the design system agree on @compiled/react', () => {
   const panel = read('src/static/issue-panel', 'package.json');
   // @compiled/vite-plugin 2.x requires @compiled/react >= 2, but every @atlaskit

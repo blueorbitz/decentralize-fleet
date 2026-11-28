@@ -49,3 +49,36 @@ test('parseArgs handles --k=v, boolean flags and positionals', () => {
   assert.equal(a.once, true);
   assert.equal(a.project, 'OPS');
 });
+
+test('heartbeat is disabled without a URL', () => {
+  const cfg = loadConfig([], { ...baseEnv });
+  assert.equal(cfg.heartbeat.url, undefined);
+  assert.equal(cfg.heartbeat.intervalMs, 30_000);
+  assert.ok(cfg.heartbeat.machine, 'machine name defaults to the hostname');
+});
+
+test('heartbeat reads its URL, token and interval from env', () => {
+  const cfg = loadConfig([], {
+    ...baseEnv,
+    FLEET_HEARTBEAT_URL: 'https://heartbeat.example',
+    FLEET_HEARTBEAT_TOKEN: 'fleet-token',
+    FLEET_HEARTBEAT_INTERVAL_MS: '15000',
+    FLEET_MACHINE: 'BUILD-BOX-2',
+  });
+  assert.equal(cfg.heartbeat.url, 'https://heartbeat.example');
+  assert.equal(cfg.heartbeat.token, 'fleet-token');
+  assert.equal(cfg.heartbeat.intervalMs, 15000);
+  assert.equal(cfg.heartbeat.machine, 'BUILD-BOX-2');
+});
+
+test('the legacy MCP token can authenticate a heartbeat', () => {
+  const cfg = loadConfig([], { ...baseEnv, FLEET_HEARTBEAT_URL: 'https://h', FLEET_MCP_TOKEN: 'legacy' });
+  assert.equal(cfg.heartbeat.token, 'legacy');
+});
+
+test('a heartbeat URL without a token is a configuration error', () => {
+  assert.throws(
+    () => loadConfig([], { ...baseEnv, FLEET_HEARTBEAT_URL: 'https://h' }),
+    /FLEET_HEARTBEAT_TOKEN/,
+  );
+});

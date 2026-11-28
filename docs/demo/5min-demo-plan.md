@@ -37,7 +37,7 @@ Read from source, not assumed.
 | Adapter `copilot` | Reference impl only | `adapters/copilot.mjs:8-11` says so explicitly |
 | Adapters `claude`, `codex` | **Do not exist** | No file in `fleet-worker/adapters/` — narration only, nothing shown |
 | Settings page | **Not implemented** | No `jira:projectSettingsPage` in `forge-app/manifest.yml`; spec only in `docs/grill/fleet-settings-page.md` |
-| Fleet roster / "who is connected" view | **Prototype only** | `docs/prototype/.../fleet-ux-prototype.html`; not in the manifest — not demoed |
+| Fleet roster / "who is connected" view | Implemented (not in this video) | `jira:projectPage` → `src/static/fleet-page/`; worker heartbeats via the `fleet-heartbeat` webtrigger. Prototype: `docs/prototype/.../fleet-ux-prototype.html` |
 
 **Consequence for the script:** the demo's proof points are claim race, lock/lease, dispatch, panel,
 PR. Nothing else gets claimed on camera.

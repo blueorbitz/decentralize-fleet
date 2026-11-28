@@ -198,16 +198,24 @@ ${WORKFLOW.map(([from, name, to]) => `     ${from.padEnd(16)} -> ${name.padEnd(1
 3. Give the Fleet Bot account "Browse projects", "Edit issues" and
    "Transition issues" on ${project} only. It needs no admin and no other project.
 
-4. Point the app at the real field ids. These are not display names on a live
-   tenant:
+4. Open Project settings -> Fleet settings and fill in the project key and the
+   field ids above. That page is the source of truth: it stores the config in
+   Forge's key-value store and generates the worker's .env. It also checks the
+   field ids and transitions, so Test connection fails loudly on a typo.
 
+   The project and the app do not have to be deployed yet for the ids to be
+   correct; the page is per project, so open it on ${project}.
+
+   CI/automation fallback: the same values can be supplied as app environment
+   variables instead of using the page. They prefill a project that has never
+   been saved, and remain the documented fallback for automation:
+
+     forge variables set FLEET_PROJECT        ${project}
      forge variables set FLEET_FIELD_WORKER   ${id(DEFAULT_FIELDS.worker)}
      forge variables set FLEET_FIELD_LEASE    ${id(DEFAULT_FIELDS.lease)}
      forge variables set FLEET_FIELD_BRANCH   ${id(DEFAULT_FIELDS.branch)}
      forge variables set FLEET_FIELD_PR       ${id(DEFAULT_FIELDS.pr)}
      forge variables set FLEET_FIELD_RETRY    ${id(DEFAULT_FIELDS.retry)}
-     forge variables set FLEET_PROJECT        ${project}
-     forge variables set --encrypt FLEET_MCP_TOKEN <a-long-random-token>
 
    Then \`forge deploy\`. The same values go to every worker as FLEET_* env vars.
 

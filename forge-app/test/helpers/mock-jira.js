@@ -34,12 +34,15 @@ export const FLOW = {
 };
 
 export class MockJira {
-  constructor({ project = 'FLT', fields = FIELDS, fieldList, isAdmin = true, transitionFields } = {}) {
+  constructor({ project = 'FLT', fields = FIELDS, fieldList, isAdmin = true, transitionFields, screenRejects } = {}) {
     this.project = project;
     this.fields = fields;
     // Fields the transition screen accepts, by display name. Defaults to the two
     // the worker writes during a claim.
     this.transitionFields = transitionFields;
+    // Field ids whose transition screen rejects them, reproducing Jira's
+    // "Field 'X' cannot be set. It is not on the appropriate screen" 400.
+    this.screenRejects = screenRejects;
     // Whether the calling account holds the Administer Jira global permission.
     // Scripts probe this before attempting field creation.
     this.isAdmin = isAdmin;
@@ -265,6 +268,21 @@ export class MockJira {
         if (!match) {
           this.transitionLog.push({ key, from: fromStatus, id: wanted, ok: false });
           return send(400, { errorMessages: ['Transition is not valid for the current status'] });
+        }
+        // A real tenant rejects the whole transition when the request carries a
+        // field its screen does not show. `screenRejects` lets a test reproduce
+        // that, so the caller's fallback is exercised rather than assumed.
+        if (body.fields && this.screenRejects?.length) {
+          const denied = Object.keys(body.fields).filter((f) => this.screenRejects.includes(f));
+          if (denied.length) {
+            this.transitionLog.push({ key, from: fromStatus, id: wanted, ok: false, screenRejected: denied });
+            return send(400, {
+              errorMessages: [],
+              errors: Object.fromEntries(
+                denied.map((f) => [f, `Field '${f}' cannot be set. It is not on the appropriate screen, or unknown.`]),
+              ),
+            });
+          }
         }
         if (body.fields) this.#applyFields(key, body.fields);
         issue.fields.status = { name: match.to };

@@ -1,0 +1,26 @@
+{
+  "name": "fleet-page",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fleet presence page — Custom UI on the Atlassian Design System.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@atlaskit/button": "^25.8.3",
+    "@atlaskit/css-reset": "^8.4.10",
+    "@atlaskit/section-message": "^10.3.0",
+    "@atlaskit/spinner": "^20.4.4",
+    "@forge/bridge": "^7.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@compiled/vite-plugin": "2.0.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "vite": "^8.3.8"
+  }
+}

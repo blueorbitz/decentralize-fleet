@@ -1,11 +1,11 @@
 {
   "site": "https://captain-sage.atlassian.net",
   "project": "FLT",
-  "issue": "FLT-101",
+  "issue": "FLT-7",
   "urls": {
-    "board": "https://captain-sage.atlassian.net/jira/software/projects/FLT/boards",
-    "issue": "https://captain-sage.atlassian.net/browse/FLT-101",
-    "settings": ""
+    "board": "https://captain-sage.atlassian.net/jira/software/projects/FLT/boards/4",
+    "issue": "https://captain-sage.atlassian.net/browse/FLT-7",
+    "settings": "https://captain-sage.atlassian.net/jira/software/c/projects/FLT/settings/apps/f3d9b563-6c87-4cd5-a0c3-28b071dbc637/56bfe2a7-989d-44c6-b51e-174e38463006"
   },
   "selectors": {
     "boardColumn": "[data-testid='software-board.board-column'], [data-testid='platform-board-kit.ui.column']",

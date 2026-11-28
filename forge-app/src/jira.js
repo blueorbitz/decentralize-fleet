@@ -113,8 +113,37 @@ export class JiraClient {
     await this.request('PUT', (tag) => tag`/rest/api/3/issue/${key}`, { fields });
   }
 
+  // A transition only accepts fields that are on its transition screen. Jira
+  // answers with 400 "Field 'X' cannot be set. It is not on the appropriate
+  // screen" when they are not, which rejects the whole transition.
+  //
+  // That is a tenant-configuration difference, not a protocol error, so the
+  // caller falls back to transitioning first and writing the fields after.
+  // fleet-worker does the same thing (src/worker.js, claim fallback).
+  static isScreenRejection(err) {
+    if (!err || err.status !== 400) return false;
+    const body = err.body;
+    if (!body || typeof body !== 'object') return false;
+    const text = JSON.stringify(body.errors || body.errorMessages || body);
+    return /cannot be set|not on the appropriate screen|is not on the appropriate screen/i.test(text);
+  }
+
   async comment(key, text) {
     await this.request('POST', (tag) => tag`/rest/api/3/issue/${key}/comment`, { body: textToAdf(text) });
+  }
+
+  // Transition with fields when the screen allows it, otherwise transition and
+  // then write the fields. Returns which path was taken so callers can report it.
+  async transitionCarrying(key, name, fields) {
+    try {
+      const result = await this.transition(key, name, { fields });
+      return { ...result, via: 'transition' };
+    } catch (err) {
+      if (!JiraClient.isScreenRejection(err)) throw err;
+      const result = await this.transition(key, name);
+      await this.setFields(key, fields);
+      return { ...result, via: 'transition-then-update' };
+    }
   }
 
   // Claim = the CAS transition plus the worker/lease fields in one request.
@@ -170,17 +199,23 @@ export class JiraClient {
   // Ready for Build — the only state a polling worker will claim. It never
   // claims on the ticket's behalf; claiming stays a worker-side CAS transition.
   // Idempotent on a ticket that is already Ready.
+  //
+  // The label and the transition travel together when the transition screen
+  // carries Labels. Real tenants often do not, so this falls back rather than
+  // failing the dispatch: the ticket still moves, and the label is written
+  // immediately after. A ticket that moved but lost its label is worse than a
+  // ticket that moved, because the board would show it as not fleet-ready.
   async markReady(key) {
     const issue = await this.getIssue(key, { fields: [] });
     const labels = Array.from(new Set([...(issue.labels || []), READY_LABEL]));
 
     if (issue.status === STATUS.TRIAGED) {
-      await this.transition(key, TRANSITION.MARK_READY, { fields: { labels } });
-      return { key, status: STATUS.READY, labels };
+      const result = await this.transitionCarrying(key, TRANSITION.MARK_READY, { labels });
+      return { key, status: STATUS.READY, labels, via: result.via };
     }
     if (issue.status === STATUS.READY) {
       await this.setFields(key, { labels });
-      return { key, status: STATUS.READY, labels };
+      return { key, status: STATUS.READY, labels, via: 'update' };
     }
     throw new JiraError(`${key} is ${issue.status}; only Triaged or Ready tickets can be dispatched`, {
       status: 409,

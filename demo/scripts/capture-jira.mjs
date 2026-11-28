@@ -23,22 +23,115 @@ import {
 
 const config = JSON.parse(fs.readFileSync(path.join(DEMO_ROOT, 'capture.config.json'), 'utf8'));
 
-// The Forge issue panel renders in an iframe. Find the frame that actually has
-// the Fleet panel in it, by text rather than by a brittle selector.
-async function findFrameWithText(page, text, { timeoutMs = 15000 } = {}) {
+// The Fleet panel lives in a Forge iframe. Only that frame has these labels;
+// Jira's own sidebar also says "Fleet", so searching the main frame for "Fleet"
+// finds the sidebar instead of the panel. Search for panel-only text, and never
+// accept the main frame.
+//
+// The match is case-insensitive on purpose: the panel's field labels are
+// capitalised by CSS (text-transform), so innerText reads "RETRY BUDGET" while
+// the source says "Retry budget".
+const PANEL_MARKERS = ['retry budget', 'acceptance criteria', 'run log'];
+
+// The panel is identified by its own field labels, which no other frame on the
+// page uses. Requiring a quorum rather than every marker matters: the panel is
+// taller than the iframe, so innerText can stop before the run log.
+function looksLikePanel(body) {
+  const lower = body.toLowerCase();
+  const hits = PANEL_MARKERS.filter((m) => lower.includes(m)).length;
+  return hits >= 2;
+}
+
+async function panelFrame(page, { timeoutMs = 30000 } = {}) {
   const deadline = Date.now() + timeoutMs;
+  const debug = process.env.DEBUG_PANEL === '1';
+  let lastReport = 0;
   while (Date.now() < deadline) {
-    for (const frame of page.frames()) {
+    const frames = page.frames().filter((f) => f !== page.mainFrame());
+    for (const frame of frames) {
       try {
-        const found = await frame.locator(`text=${text}`).first().count();
-        if (found > 0) return frame;
+        const body = await frame.locator('body').innerText({ timeout: 2000 });
+        if (looksLikePanel(body)) return frame;
+        if (debug && Date.now() - lastReport > 2000) {
+          lastReport = Date.now();
+          const lower = body.toLowerCase();
+          console.log(
+            `    [panelFrame] iframe len=${body.length} markers=${PANEL_MARKERS.filter((m) => lower.includes(m)).join(',') || 'none'}`,
+          );
+        }
       } catch {
-        /* frame navigated or detached; try the next one */
+        /* frame detached or still loading */
       }
     }
-    await page.waitForTimeout(300);
+    if (debug && frames.length === 0 && Date.now() - lastReport > 2000) {
+      lastReport = Date.now();
+      console.log(`    [panelFrame] no child frames (${page.frames().length} total)`);
+    }
+    await page.waitForTimeout(400);
   }
   return null;
+}
+
+// A Forge issue panel is not on the issue by default: Jira only mounts it once
+// it has been added through "View app actions" > <panel name>. A newly created
+// ticket therefore shows no panel at all, which looks like a broken app.
+//
+// This adds it if it is missing, and is idempotent: on a ticket that already has
+// the panel, the menu click is skipped.
+async function ensurePanel(page, { timeoutMs = 25000 } = {}) {
+  // Recording video slows the page enough that the panel's iframe can take
+  // longer than a few seconds to attach, so give detection a real window before
+  // deciding the panel is absent and clicking the menu.
+  let frame = await panelFrame(page, { timeoutMs: 20000 });
+  if (frame) return { frame, added: false };
+
+  const trigger = page.getByRole('button', { name: /view app actions/i }).first();
+  if (!(await trigger.count())) return { frame: null, added: false };
+
+  await trigger.click();
+  await page.waitForTimeout(1500);
+
+  const entry = page.getByRole('menuitem', { name: /^fleet$/i }).first();
+  if (!(await entry.count())) {
+    await page.keyboard.press('Escape').catch(() => {});
+    return { frame: null, added: false };
+  }
+
+  await entry.click();
+  // The menu item toggles, so this only runs when the panel was genuinely
+  // absent above. Adding it does not mount it in the current view; Jira renders
+  // it on the next load of the issue, so reload rather than waiting.
+  await page.waitForTimeout(2000);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  frame = await panelFrame(page, { timeoutMs });
+  return { frame, added: true };
+}
+
+// Read the state the panel is showing, so a take can assert it filmed the right
+// thing instead of silently recording a spinner. The panel's grid renders each
+// field as "LABEL" then its value on the next line, in order, so the value is
+// the line after the label.
+function fieldAfter(text, label) {
+  const lines = text.split('\n').map((l) => l.trim());
+  // Panel labels are uppercased by CSS, so compare case-insensitively.
+  const wanted = label.toLowerCase();
+  const at = lines.findIndex((l) => l.toLowerCase() === wanted);
+  if (at === -1) return null;
+  const next = lines.slice(at + 1).find((l) => l && l.toLowerCase() !== wanted);
+  return next || null;
+}
+
+async function panelState(frame) {
+  const text = await frame.locator('body').innerText().catch(() => '');
+  return {
+    status: fieldAfter(text, 'STATUS'),
+    worker: fieldAfter(text, 'WORKER'),
+    lease: fieldAfter(text, 'LEASE'),
+    branch: fieldAfter(text, 'BRANCH'),
+    pr: fieldAfter(text, 'PULL REQUEST'),
+    retry: fieldAfter(text, 'RETRY BUDGET'),
+    text,
+  };
 }
 
 // Jira's own chrome is slow and noisy. Wait for network to settle, but never
@@ -49,55 +142,111 @@ async function settle(page, ms = 2500) {
 }
 
 async function takeDispatch(page, { log }) {
-  await settle(page, 3000);
-
-  // Land on the issue, not the board: the panel is what this take is about.
   await page.goto(config.urls.issue, { waitUntil: 'domcontentloaded' });
-  await settle(page, 4000);
+  await settle(page, 6000);
 
-  const panel = await findFrameWithText(page, 'Fleet', { timeoutMs: 20000 });
-  const frame = panel || page;
+  const { frame, added } = await ensurePanel(page);
+  if (added) {
+    // Adding the panel is setup, not part of the shot; settle before filming it.
+    log('state', { phase: 'panel-added' });
+    await page.waitForTimeout(2500);
+  }
+  if (!frame) {
+    log('warn', { message: 'Fleet panel not available on this ticket' });
+    await page.waitForTimeout(4000);
+    return;
+  }
+
+  const before = await panelState(frame);
+  log('state', { phase: 'before', ...before, text: undefined });
 
   const dispatch = frame.getByRole('button', { name: /dispatch to fleet|mark fleet-ready/i }).first();
+  const requeue = frame.getByRole('button', { name: /abort & requeue|requeue stale claim/i }).first();
+
   if (await dispatch.count()) {
+    // The button sits at the bottom of the panel, often below the fold. Scroll it
+    // into view first so the click lands on screen and the cursor has somewhere
+    // sensible to travel.
     await dispatch.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(1200);
     await hoverAndLog(page, dispatch, log);
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(700);
     await clickAndLog(page, dispatch, log, 'dispatch');
-    // The panel refetches after the write; hold long enough to see the pill flip.
-    await page.waitForTimeout(5000);
-    log('state', { status: 'Ready for Build' });
-  } else {
-    // No button means we are not on a Triaged/Ready ticket. Record what is there
-    // so the failure is visible rather than silent.
-    log('warn', { message: 'Dispatch button not found; panel state captured as-is' });
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(6000);
+    log('state', { phase: 'after', ...(await panelState(frame)), text: undefined });
+    return;
   }
+
+  // Not dispatchable: the ticket is already past Ready for Build. That is not a
+  // failure of the take, but the shot has to be honest about it.
+  log('warn', { message: `no dispatch button; ticket is "${before.status}"` });
+  await page.waitForTimeout(2500);
 }
 
 async function takePanel(page, { log }, { expectStatus }) {
   await page.goto(config.urls.issue, { waitUntil: 'domcontentloaded' });
-  await settle(page, 4500);
+  await settle(page, 6000);
 
-  const panel = await findFrameWithText(page, 'Fleet', { timeoutMs: 20000 });
-  const frame = panel || page;
+  const { frame, added } = await ensurePanel(page);
+  if (added) {
+    log('state', { phase: 'panel-added' });
+    await page.waitForTimeout(2500);
+  }
+  if (!frame) {
+    log('warn', { message: 'Fleet panel not available on this ticket' });
+    await page.waitForTimeout(4000);
+    return;
+  }
 
-  // Move the pointer over the panel so the cursor is visible and intentional.
-  const heading = frame.locator('text=Fleet').first();
-  await hoverAndLog(page, heading, log);
+  // The panel mounts before it has data: the grid renders dashes first and is
+  // replaced when the resolver answers. Filming that is a shot of a loading
+  // skeleton, so wait for a real value before recording.
+  const loaded = await waitForPanelData(page, frame, log);
 
-  // Hold on the grid (worker / lease / status), then drift to the run log.
-  await page.waitForTimeout(3500);
+  // The panel sits below Jira's description and attachments. Scroll it to the
+  // top of the viewport so the grid, the log and the buttons are all in frame.
+  await frame.locator('text=Fleet').first().scrollIntoViewIfNeeded().catch(() => {});
+  await page.waitForTimeout(1200);
+
+  const state = await panelState(frame);
+  log('state', { expectStatus, loaded, ...state, text: undefined });
+  if (expectStatus && state.status && state.status !== expectStatus) {
+    log('warn', { message: `expected "${expectStatus}" but panel shows "${state.status}"` });
+  }
+
+  // Land the pointer on the worker value, then travel down to the run log.
+  const workerValue = frame.locator('text=WORKER').first();
+  await hoverAndLog(page, workerValue, log);
+  await page.waitForTimeout(3200);
+
   const runLog = frame.locator('text=/Run log/i').first();
   if (await runLog.count()) {
+    await runLog.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(800);
     const box = await runLog.boundingBox();
     if (box) {
-      log('hover', { x: Math.round(box.x + 40), y: Math.round(box.y + 12) });
-      await page.waitForTimeout(2200);
+      log('hover', { x: Math.round(box.x + 40), y: Math.round(box.y + 14) });
+      await page.waitForTimeout(3200);
     }
   }
-  log('state', { status: expectStatus });
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1200);
+}
+
+// Wait until the panel has real values rather than its loading dashes.
+async function waitForPanelData(page, frame, log, { timeoutMs = 25000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const text = await frame.locator('body').innerText().catch(() => '');
+    const lines = text.split('\n').map((l) => l.trim());
+    const statusAt = lines.findIndex((l) => l.toLowerCase() === 'status');
+    const value = statusAt === -1 ? null : lines.slice(statusAt + 1).find(Boolean);
+    if (value && value !== '—' && /^(Backlog|Triaged|Ready for Build|In Build|In Review|Done|Failed)$/i.test(value)) {
+      return true;
+    }
+    await page.waitForTimeout(500);
+  }
+  log('warn', { message: 'panel values never loaded' });
+  return false;
 }
 
 async function takePr(page, { log }) {
@@ -159,7 +308,9 @@ async function main() {
   const headed = args.includes('--headed');
   const prune = args.includes('--prune');
   const setPrIndex = args.indexOf('--set-pr');
-  const wanted = args.filter((a) => !a.startsWith('--') && a !== args[setPrIndex + 1]);
+  // A value passed to --set-pr is not a take name.
+  const consumed = new Set(setPrIndex !== -1 ? [setPrIndex, setPrIndex + 1] : []);
+  const wanted = args.filter((a, i) => !a.startsWith('--') && !consumed.has(i));
 
   if (setPrIndex !== -1) {
     const url = args[setPrIndex + 1];

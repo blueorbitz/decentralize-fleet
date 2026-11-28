@@ -187,6 +187,40 @@ test('a full run completes on a tenant with unconfigured transition screens', as
   }
 });
 
+test('the heartbeat marks the worker running on claim and idle afterwards', async () => {
+  const mock = new MockJira();
+  const baseUrl = await mock.start();
+  const ws = makeGitWorkspace();
+  const tmp = tmpdir('heartbeat');
+  const saved = process.env.FLEET_SCRIPT_FILE;
+  const beats = [];
+  try {
+    process.env.FLEET_SCRIPT_FILE = 'FLEET_OUTPUT.md';
+    mock.addTicket({ key: 'FLT-7', summary: 'Beat', status: 'Ready for Build' });
+    const cfg = makeCfg(baseUrl, ws.workspace, tmp);
+    const heartbeat = {
+      start() {},
+      async stop() {},
+      setState(state, ticket = null) {
+        beats.push({ state, ticket });
+      },
+    };
+    const worker = new Worker({ cfg, logger: new Logger({ file: cfg.logFile }), heartbeat });
+
+    const summary = await worker.pollOnce();
+
+    assert.equal(summary.completed, 1);
+    assert.ok(beats.some((b) => b.state === 'running' && b.ticket === 'FLT-7'), 'claims announce running');
+    assert.equal(beats.at(-1).state, 'idle', 'every exit returns to idle');
+  } finally {
+    if (saved === undefined) delete process.env.FLEET_SCRIPT_FILE;
+    else process.env.FLEET_SCRIPT_FILE = saved;
+    await mock.stop();
+    ws.cleanup();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('losing the claim race is a clean skip, not an error', async () => {
   const mock = new MockJira();
   const baseUrl = await mock.start();

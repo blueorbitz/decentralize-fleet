@@ -5,8 +5,8 @@ import { JiraClient } from '../src/jira.js';
 import { basicTransport } from '../src/transports.js';
 import { loadConfig } from '../src/config.js';
 
-async function withJira(fn) {
-  const mock = new MockJira();
+async function withJira(fn, mockOptions = {}) {
+  const mock = new MockJira(mockOptions);
   const baseUrl = await mock.start();
   try {
     const cfg = loadConfig({});
@@ -83,6 +83,47 @@ test('dispatch is idempotent on a Ready ticket and refuses other statuses', asyn
 
     mock.addTicket({ key: 'FLT-106', status: 'In Build' });
     await assert.rejects(() => jira.markReady('FLT-106'), (err) => err.status === 409);
+  });
+});
+
+// A real tenant rejects the whole transition when the request carries a field
+// its screen does not show. Dispatch must still land the ticket on Ready, with
+// its label, because a moved-but-unlabelled ticket is invisible to the board.
+test('dispatch falls back when the transition screen rejects labels', async () => {
+  await withJira(
+    async ({ mock, jira }) => {
+      mock.addTicket({ key: 'FLT-109', status: 'Triaged', labels: [] });
+
+      const result = await jira.markReady('FLT-109');
+
+      assert.equal(result.status, 'Ready for Build');
+      assert.equal(result.via, 'transition-then-update', 'should report the fallback path');
+
+      const after = mock.plain('FLT-109');
+      assert.equal(after.status, 'Ready for Build', 'the ticket must still move');
+      assert.deepEqual(after.labels, ['fleet-ready'], 'the label must still be written');
+      assert.equal(after.worker, null, 'dispatch must not claim');
+
+      const rejected = mock.transitionLog.filter((t) => t.screenRejected);
+      assert.equal(rejected.length, 1, 'exactly one request should have been rejected');
+      const applied = mock.transitionLog.filter((t) => t.ok && t.to === 'Ready for Build');
+      assert.equal(applied.length, 1, 'exactly one transition should have succeeded');
+    },
+    { screenRejects: ['labels'] },
+  );
+});
+
+test('dispatch does not swallow a rejection that is not about the screen', async () => {
+  await withJira(async ({ mock, jira }) => {
+    mock.addTicket({ key: 'FLT-110', status: 'Triaged' });
+    // A 400 that is not a screen rejection must surface, not be retried.
+    const realTransition = jira.transition.bind(jira);
+    jira.transition = async () => {
+      throw Object.assign(new Error('bad request'), { status: 400, body: { errorMessages: ['something else'] } });
+    };
+    await assert.rejects(() => jira.markReady('FLT-110'), (err) => err.status === 400);
+    jira.transition = realTransition;
+    assert.equal(mock.plain('FLT-110').status, 'Triaged');
   });
 });
 

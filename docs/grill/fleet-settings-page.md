@@ -172,16 +172,33 @@ M. Rollout
 
 ## Implementation checklist
 
-- [ ] `manifest.yml`: `storage:app`, `jira:projectSettingsPage`, `settings-resolver`, resource.
-- [ ] `src/settings/schema.js`, `store.js`, `service.js` (runtime-free, injectable store).
-- [ ] `src/backend/settings.js`: resolver API + `ADMINISTER_PROJECTS` gate.
-- [ ] `src/static/settings/index.jsx`: UI Kit page.
-- [ ] `src/config.js`: `envConfig()`, `WORKER_DEFAULTS`; remove dead app knobs.
-- [ ] `src/backend/client.js` → async `makeJiraClient({ projectId })`.
-- [ ] `src/backend/index.js`: panel project id, reaper loop, trigger wiring.
-- [ ] `src/mcp-trigger.js`: token → project auth, no `process.env` token read.
-- [ ] `src/mcp.js`, `src/actions.js`, `src/backend/actions.js`: project binding.
-- [ ] `src/setup-check.js` extracted from `scripts/verify-setup.mjs`.
-- [ ] `scripts/provision.mjs` and `README.md`: UI-first wording.
-- [ ] Tests: manifest, contract, auth-model, mcp-http, settings store/service/resolver,
+- [x] `manifest.yml`: `storage:app`, `jira:projectSettingsPage`, `settings-resolver`, resource.
+- [x] `src/settings/schema.js`, `store.js`, `service.js` (runtime-free, injectable store).
+- [x] `src/backend/settings.js`: resolver API + `ADMINISTER_PROJECTS` gate.
+- [x] `src/static/settings/index.jsx`: UI Kit page (plus `model.js`, the testable half).
+- [x] `src/config.js`: `envConfig()`, `WORKER_DEFAULTS`; remove dead app knobs.
+- [x] `src/backend/client.js` → async `makeJiraClient({ projectId })`.
+- [x] `src/backend/index.js`: panel project id, reaper loop, trigger wiring.
+- [x] `src/mcp-trigger.js`: token → project auth, no `process.env` token read.
+- [x] `src/mcp.js`, `src/actions.js`, `src/backend/actions.js`: project binding.
+- [x] `src/setup-check.js` extracted from `scripts/verify-setup.mjs`.
+- [x] `scripts/provision.mjs` and `README.md`: UI-first wording.
+- [x] Tests: manifest, contract, auth-model, mcp-http, settings store/service/resolver,
       reaper multi-project, scripts-cli, settings UI props.
+
+### Notes from implementation
+
+- `src/actions.js` and `src/backend/actions.js` do not exist in this repo, and no
+  `rovo:*` module is declared (they need Rovo entitlement and would make a plain
+  `forge deploy` fail). The project binding those files would carry is in
+  `src/client.js`, `src/resolver.js` and `src/backend/index.js` instead.
+- The UI Kit page renders from source, so it has no build step and
+  `@forge/react` never loads under `node --test`. All of its decisions live in
+  `src/static/settings/model.js`, which the tests drive; the JSX is a thin
+  render and is compiled with esbuild in review.
+- On the "non-admin" question the human chose **read-only everything**: a
+  non-admin sees the same page, including token names, re-reveal and the
+  copyable `.env`, while every write resolver is refused with 403. That is a
+  deliberate supersede of principle 4 for the read side.
+- `leaseStaleMs` is read per invocation, so the panel and reaper pick up a save
+  immediately; the restart notice applies only to a running worker.

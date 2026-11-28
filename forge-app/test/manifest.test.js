@@ -21,6 +21,8 @@ test('every module references a declared function', () => {
     ...manifest.modules.scheduledTrigger.map((t) => t.function),
     ...manifest.modules.webtrigger.map((t) => t.function),
     ...manifest.modules['jira:issuePanel'].map((p) => p.resolver.function),
+    ...manifest.modules['jira:projectSettingsPage'].map((p) => p.resolver.function),
+    ...manifest.modules['jira:projectPage'].map((p) => p.resolver.function),
   ];
   for (const ref of refs) {
     assert.ok(functionKeys.includes(ref), `module references undeclared function "${ref}"`);
@@ -48,6 +50,27 @@ test('the scheduled reaper runs on the shortest interval and the MCP trigger is 
   // Dynamic is required: JSON-RPC responses are not a fixed set of bodies.
   assert.equal(mcp.response.type, 'dynamic');
   assert.equal(mcp.urlFormat, 'v2');
+
+  const heartbeat = manifest.modules.webtrigger.find((t) => t.key === 'fleet-heartbeat');
+  assert.ok(heartbeat, 'the manifest declares the fleet-heartbeat webtrigger');
+  assert.equal(heartbeat.response.type, 'dynamic');
+  assert.equal(heartbeat.urlFormat, 'v2');
+});
+
+test('the Fleet page is Custom UI, wired to a resolver and a built resource', () => {
+  const [page] = manifest.modules['jira:projectPage'];
+  assert.ok(page, 'the manifest declares no jira:projectPage');
+  assert.ok(page.title, 'the Fleet page needs a title');
+  assert.ok(page.icon, 'the Fleet page needs an icon');
+  assert.equal(page.render, undefined, 'Custom UI must not declare render: native');
+  assert.ok(page.resolver?.function, 'the Fleet page needs a resolver');
+
+  const resource = manifest.resources.find((r) => r.key === page.resource);
+  assert.ok(resource, `Fleet page resource "${page.resource}" is not declared`);
+  assert.ok(
+    fs.existsSync(path.join(root, resource.path, 'index.html')),
+    `${resource.path}/index.html is missing — run npm run build:ui`,
+  );
 });
 
 test('the issue panel resource is built and has an index.html entry point', () => {
@@ -61,8 +84,21 @@ test('the issue panel resource is built and has an index.html entry point', () =
   assert.ok(fs.existsSync(entry), `${resource.path}/index.html is missing — run npm run build:ui`);
 });
 
+test('the settings page is UI Kit and its resource exists', () => {
+  const [page] = manifest.modules['jira:projectSettingsPage'];
+  assert.ok(page, 'the manifest declares no jira:projectSettingsPage');
+  assert.equal(page.render, 'native', 'the settings page is UI Kit');
+  assert.ok(page.title, 'the settings page needs a title');
+  assert.ok(page.resolver?.function, 'the settings page needs a resolver');
+
+  const resource = manifest.resources.find((r) => r.key === page.resource);
+  assert.ok(resource, `settings resource "${page.resource}" is not declared`);
+  // UI Kit renders from source, so the entry file must be there at deploy time.
+  assert.ok(fs.existsSync(path.join(root, resource.path)), `${resource.path} is missing`);
+});
+
 test('the app declares only the scopes the fleet uses', () => {
-  assert.deepEqual(manifest.permissions.scopes.sort(), ['read:jira-work', 'write:jira-work']);
+  assert.deepEqual(manifest.permissions.scopes.sort(), ['read:jira-work', 'storage:app', 'write:jira-work']);
   assert.equal(manifest.app.runtime.name, 'nodejs24.x');
   // `forge register` fills in the real id; a placeholder must still parse.
   assert.match(manifest.app.id, /^ari:cloud:ecosystem::app\/[0-9a-fA-F-]{36}$/);

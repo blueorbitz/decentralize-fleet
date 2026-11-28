@@ -138,27 +138,32 @@ export function toKey(name) {
   return name.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
+// Page-space centre of an element. Playwright reports Locator.boundingBox()
+// relative to the main frame viewport even when the element lives in an iframe,
+// which is what the cursor overlay needs — no offset maths required.
+export async function pagePoint(locator) {
+  const box = await locator.boundingBox();
+  if (!box) return null;
+  return { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
+}
+
 // A click that lands at a known point and records it. Used for everything the
 // cursor has to follow.
 export async function clickAndLog(page, locator, log, label) {
-  const box = await locator.boundingBox();
-  if (!box) throw new Error(`cannot click ${label}: not visible`);
-  const x = Math.round(box.x + box.width / 2);
-  const y = Math.round(box.y + box.height / 2);
-  log('hover', { x, y });
+  const point = await pagePoint(locator);
+  if (!point) throw new Error(`cannot click ${label}: not visible`);
+  log('hover', point);
   await page.waitForTimeout(220);
-  log('click', { x, y, label });
+  log('click', { ...point, label });
   await locator.click();
-  return { x, y };
+  return point;
 }
 
 export async function hoverAndLog(page, locator, log) {
-  const box = await locator.boundingBox();
-  if (!box) return null;
-  const x = Math.round(box.x + box.width / 2);
-  const y = Math.round(box.y + box.height / 2);
-  log('hover', { x, y });
-  return { x, y };
+  const point = await pagePoint(locator);
+  if (!point) return null;
+  log('hover', point);
+  return point;
 }
 
 export function readCaptureConfig() {

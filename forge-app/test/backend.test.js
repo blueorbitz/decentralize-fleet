@@ -90,11 +90,13 @@ test('every resolver refuses to run outside an issue', async () => {
   });
 });
 
-test('the backend exports a resolver handler plus both triggers', async () => {
+test('the backend exports the panel, page and every trigger handler', async () => {
   assert.equal(typeof handler, 'function');
   const mod = await import('../src/backend/index.js');
   assert.equal(typeof mod.reaperHandler, 'function');
   assert.equal(typeof mod.mcpHandler, 'function');
+  assert.equal(typeof mod.heartbeatHandler, 'function');
+  assert.equal(typeof mod.pageHandler, 'function');
 });
 
 test('the MCP trigger refuses without a token, then parses JSON-RPC once authorized', async () => {

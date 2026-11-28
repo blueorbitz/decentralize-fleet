@@ -4,12 +4,20 @@
 // must agree on the status names, the transition names and the custom fields,
 // because every fleet state change is a Jira write made by whichever process
 // gets there first. test/contract.test.js fails if the two drift apart.
+
 export const CONSTANTS = {
   LEASE_REFRESH_MS: 5 * 60_000,
   LEASE_STALE_MS: 15 * 60_000,
   RUN_TIMEOUT_MS: 2 * 60 * 60_000,
   RETRY_BUDGET: 1,
   COMMENT_TAIL: 8,
+};
+
+// The two knobs the app does not consume. They are stored centrally so the
+// settings page can emit them into the worker's .env, and nothing else.
+export const WORKER_DEFAULTS = {
+  leaseRefreshMs: CONSTANTS.LEASE_REFRESH_MS,
+  retryBudget: CONSTANTS.RETRY_BUDGET,
 };
 
 export const STATUS = {
@@ -31,7 +39,8 @@ export const TRANSITION = {
 };
 
 // On a real Jira tenant these are customfield_XXXXX ids, not display names.
-// scripts/provision.mjs prints the ids; set them with `forge variables set`.
+// scripts/provision.mjs prints the ids; the settings page is where an
+// installation admin enters them.
 export const DEFAULT_FIELDS = {
   worker: 'Fleet Worker',
   lease: 'Fleet Lease',
@@ -42,10 +51,14 @@ export const DEFAULT_FIELDS = {
 
 export const READY_LABEL = 'fleet-ready';
 
-export function loadConfig(env = process.env) {
+export const DEFAULT_PROJECT = 'FLT';
+
+// The configuration an installation can supply, in one place. This is the
+// "env" tier of the resolution order: KVS record -> env vars -> code defaults.
+export function envConfig(env = process.env) {
   return {
     jira: {
-      project: env.FLEET_PROJECT || 'FLT',
+      project: env.FLEET_PROJECT || DEFAULT_PROJECT,
       fields: {
         worker: env.FLEET_FIELD_WORKER || DEFAULT_FIELDS.worker,
         lease: env.FLEET_FIELD_LEASE || DEFAULT_FIELDS.lease,
@@ -55,15 +68,24 @@ export function loadConfig(env = process.env) {
       },
     },
     timings: {
-      leaseRefreshMs: intOr(env.FLEET_LEASE_REFRESH_MS, CONSTANTS.LEASE_REFRESH_MS),
       leaseStaleMs: intOr(env.FLEET_LEASE_STALE_MS, CONSTANTS.LEASE_STALE_MS),
     },
-    retryBudget: intOr(env.FLEET_RETRY_BUDGET, CONSTANTS.RETRY_BUDGET),
+    worker: {
+      leaseRefreshMs: intOr(env.FLEET_LEASE_REFRESH_MS, WORKER_DEFAULTS.leaseRefreshMs),
+      retryBudget: intOr(env.FLEET_RETRY_BUDGET, WORKER_DEFAULTS.retryBudget),
+    },
     mcp: {
-      token: env.FLEET_MCP_TOKEN || '',
       defaultWorker: env.FLEET_MCP_WORKER || 'mcp-client',
     },
   };
+}
+
+// Backwards-compatible entry point: every caller that only needs the effective
+// app configuration keeps working. The settings-aware callers use
+// loadEffectiveConfig in src/settings/service.js instead.
+export function loadConfig(env = process.env) {
+  const cfg = envConfig(env);
+  return { ...cfg, mcp: { ...cfg.mcp, token: env.FLEET_MCP_TOKEN || '' } };
 }
 
 function intOr(value, fallback) {

@@ -13,6 +13,7 @@ export const CONSTANTS = {
   LEASE_STALE_MS: 15 * 60_000,
   RUN_TIMEOUT_MS: 2 * 60 * 60_000,
   RETRY_BUDGET: 1,
+  HEARTBEAT_INTERVAL_MS: 30_000,
 };
 
 // Kanban state machine (High #4 in the doc).
@@ -166,6 +167,18 @@ export function loadConfig(argv = process.argv.slice(2), env = process.env) {
       authMode: pick(args, env, 'bb-auth', 'FLEET_BB_AUTH', 'auto'),
     },
     logFile: pick(args, env, 'log', 'FLEET_LOG'),
+    heartbeat: {
+      url: pick(args, env, 'heartbeat-url', 'FLEET_HEARTBEAT_URL'),
+      // A heartbeat is authenticated with a Fleet token from Project settings.
+      // FLEET_MCP_TOKEN is accepted as a migration fallback, matching the MCP
+      // webtrigger's legacy token.
+      token: pick(args, env, 'heartbeat-token', 'FLEET_HEARTBEAT_TOKEN') || env.FLEET_MCP_TOKEN,
+      intervalMs: intOr(
+        pick(args, env, 'heartbeat-interval-ms', 'FLEET_HEARTBEAT_INTERVAL_MS'),
+        CONSTANTS.HEARTBEAT_INTERVAL_MS,
+      ),
+      machine: pick(args, env, 'machine', 'FLEET_MACHINE') || os.hostname(),
+    },
   };
 
   validateConfig(cfg);
@@ -181,6 +194,11 @@ function validateConfig(cfg) {
   if (cfg.command === 'run' && !cfg.repo.path) missing.push('--repo (FLEET_REPO)');
   if (cfg.command === 'run' && cfg.worker.adapter !== 'script' && !cfg.worker.adapterPath && !cfg.worker.adapter) {
     missing.push('--adapter (FLEET_ADAPTER)');
+  }
+  // Heartbeat is opt-in: no URL means no presence registry, which is the
+  // original worker behaviour. A URL without a token is a misconfiguration.
+  if (cfg.heartbeat?.url && !cfg.heartbeat.token) {
+    missing.push('--heartbeat-token (FLEET_HEARTBEAT_TOKEN)');
   }
   if (missing.length) {
     throw new ConfigError(`missing required config: ${missing.join(', ')}`);

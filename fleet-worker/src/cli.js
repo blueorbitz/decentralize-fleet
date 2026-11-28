@@ -41,6 +41,12 @@ Bitbucket PR host:
   --bb-workspace --bb-repo --bb-username --bb-app-password
   --bb-auth <mode>    auto | bearer | basic (env FLEET_BB_AUTH, default auto)
 
+Heartbeat (optional presence registry):
+  --heartbeat-url <url>        Fleet heartbeat webtrigger (env FLEET_HEARTBEAT_URL)
+  --heartbeat-token <token>    A Fleet token from Project settings (env FLEET_HEARTBEAT_TOKEN)
+  --heartbeat-interval-ms <n>  Beat interval, default 30000 (env FLEET_HEARTBEAT_INTERVAL_MS)
+  --machine <name>             Display name shown in the Fleet page (env FLEET_MACHINE)
+
 Everything else has a documented default (lease 5m/15m, run timeout 2h, retry 1,
 poll 30-60s) — see docs/grill/codegeist-jira-ai-fleet.md.
 `;
@@ -91,9 +97,21 @@ export async function main(argv = process.argv.slice(2), env = process.env) {
     process.on('SIGTERM', () => stop('SIGTERM'));
 
     logger.info(`fleet-worker ${pkg.version} as ${cfg.worker.id} (adapter=${cfg.worker.adapter})`);
+    if (worker.heartbeat) {
+      logger.info(
+        `heartbeat → ${cfg.heartbeat.url} every ${Math.round(cfg.heartbeat.intervalMs / 1000)}s as ${cfg.heartbeat.machine}`,
+      );
+    } else {
+      logger.debug('heartbeat disabled — set FLEET_HEARTBEAT_URL to show this worker on the Fleet page');
+    }
     if (cfg.once) {
-      const summary = await worker.pollOnce();
-      logger.info('poll summary', summary);
+      worker.heartbeat?.start();
+      try {
+        const summary = await worker.pollOnce();
+        logger.info('poll summary', summary);
+      } finally {
+        await worker.heartbeat?.stop();
+      }
       return 0;
     }
     await worker.runLoop();
