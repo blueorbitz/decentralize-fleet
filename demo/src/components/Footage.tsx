@@ -1,5 +1,12 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { AbsoluteFill, OffthreadVideo, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
+import {
+  AbsoluteFill,
+  Freeze,
+  OffthreadVideo,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from 'remotion';
 import Cursor, { type CursorEvent } from './Cursor';
 
 /**
@@ -21,6 +28,7 @@ export default function Footage({
   children,
   crop = 0,
   lift = 0,
+  clipSeconds,
 }: {
   src: string;
   events?: CursorEvent[];
@@ -44,12 +52,19 @@ export default function Footage({
    * of the page the beat is about.
    */
   lift?: number;
+  /** Length of the source clip, so the take can hold its last frame past the end. */
+  clipSeconds?: number;
 }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  void frame;
-  void fps;
   const width = 1600 - crop;
+
+  // The voiceover decides a beat's length, which can exceed the clip. Rather
+  // than cut the narration or replay the take, hold the last frame once the
+  // video runs out: the pointer stops moving and the shot rests on its result.
+  const clipFrames = clipSeconds ? Math.round(clipSeconds * fps) : Infinity;
+  const localFrame = frame - Math.round(trimBeforeSeconds * fps);
+  const exhausted = localFrame >= clipFrames;
 
   return (
     <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', paddingBottom: lift * 2 }}>
@@ -78,12 +93,26 @@ export default function Footage({
               gating it on a frame offset would blank the video in the middle of
               a scene. */}
           <div style={{ position: 'absolute', left: -crop, top: 0, width: 1600, height: 900 }}>
-            <OffthreadVideo
-              src={staticFile(src)}
-              trimBefore={Math.round(trimBeforeSeconds * fps)}
-              style={{ width: 1600, height: 900, display: 'block', objectFit: 'cover' }}
-            />
-            {showCursor ? <Cursor events={events} offsetMs={offsetMs} /> : null}
+            {exhausted ? (
+              <Freeze frame={clipFrames - 1}>
+                <OffthreadVideo
+                  src={staticFile(src)}
+                  trimBefore={Math.round(trimBeforeSeconds * fps)}
+                  style={{ width: 1600, height: 900, display: 'block', objectFit: 'cover' }}
+                />
+              </Freeze>
+            ) : (
+              <OffthreadVideo
+                src={staticFile(src)}
+                trimBefore={Math.round(trimBeforeSeconds * fps)}
+                style={{ width: 1600, height: 900, display: 'block', objectFit: 'cover' }}
+              />
+            )}
+            {showCursor ? (
+              // Clamp the pointer to the frozen moment too, so it does not drift
+              // across a still frame after the clip ends.
+              <Cursor events={events} offsetMs={offsetMs} clampMs={exhausted ? clipSeconds! * 1000 : undefined} />
+            ) : null}
             {children}
           </div>
         </div>

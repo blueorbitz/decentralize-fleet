@@ -6,93 +6,119 @@
     {
       "id": "S01",
       "label": "Two kinds of AI coding",
-      "seconds": 12,
+      "seconds": 12.46,
       "caption": "Two kinds of AI coding",
-      "narration": "Every team now has two kinds of AI coding. One runs on your laptop. The other runs in someone else's cloud. What if it ran on your machines — all of them?"
+      "narration": "Every team now has two kinds of AI coding. One runs on your laptop. The other runs in someone else's cloud. What if it ran on your machines — all of them?",
+      "voiceover": "voiceover/S01.mp3",
+      "audioSeconds": 11.86
     },
     {
       "id": "S02",
       "label": "The two extremes",
-      "seconds": 38,
+      "seconds": 28.75,
       "caption": "One person, one machine — or a machine that knows nothing",
-      "narration": "Today it's one or the other. Either an engineer picks up a ticket and drives an agent locally. Great context — their repo, their credentials, their tools. But it's one person, one machine, one ticket at a time. Or you hand the ticket to a cloud agent. Parallel and hands-off — but it starts from nothing. Fresh container, fresh clone, no internal packages, and no way to use a model that never leaves your network."
+      "narration": "Today it's one or the other. Either an engineer picks up a ticket and drives an agent locally. Great context — their repo, their credentials, their tools. But it's one person, one machine, one ticket at a time. Or you hand the ticket to a cloud agent. Parallel and hands-off — but it starts from nothing. Fresh container, fresh clone, no internal packages, and no way to use a model that never leaves your network.",
+      "voiceover": "voiceover/S02.mp3",
+      "audioSeconds": 27.95
     },
     {
       "id": "S03",
       "label": "The gap",
-      "seconds": 15,
+      "seconds": 12.46,
       "caption": "The missing middle",
-      "narration": "The gap is agentic work that runs on hardware you already own and already configured. Spare laptops, build boxes, a desktop with a GPU — without a human babysitting every run."
+      "narration": "The gap is agentic work that runs on hardware you already own and already configured. Spare laptops, build boxes, a desktop with a GPU — without a human babysitting every run.",
+      "voiceover": "voiceover/S03.mp3",
+      "audioSeconds": 11.86
     },
     {
       "id": "S04",
       "label": "The solution",
-      "seconds": 30,
+      "seconds": 31.15,
       "caption": "Decentralize Fleet",
-      "narration": "This is Decentralize Fleet. Install the Forge app in Jira. Start the fleet worker on any machine. That's the whole install. Workers poll the board for tickets in Ready for Build. When one appears, a worker claims it — and claiming is a Jira status transition, so exactly one machine can win. Jira is the queue. There's no scheduler in the middle. And because the model runs on your machine, the data can stay there too."
+      "narration": "This is Decentralize Fleet. Install the Forge app in Jira. Start the fleet worker on any machine. That's the whole install. Workers poll the board for tickets in Ready for Build. When one appears, a worker claims it — and claiming is a Jira status transition, so exactly one machine can win. Jira is the queue. There's no scheduler in the middle. And because the model runs on your machine, the data can stay there too.",
+      "voiceover": "voiceover/S04.mp3",
+      "audioSeconds": 30.35
     },
     {
       "id": "S05",
       "label": "Dispatch",
-      "seconds": 6,
+      "seconds": 13.74,
       "caption": "Dispatch to fleet",
-      "narration": "A real ticket, Triaged. I open the Fleet panel and dispatch it. Watch the button — it moves the ticket to Ready for Build and stops. The panel never claims on a worker's behalf."
+      "narration": "A real ticket, Triaged. I open the Fleet panel and dispatch it. Watch the button — it moves the ticket to Ready for Build and stops. The panel never claims on a worker's behalf.",
+      "voiceover": "voiceover/S05.mp3",
+      "audioSeconds": 13.14
     },
     {
       "id": "S06",
       "label": "One claim, two machines",
-      "seconds": 26,
+      "seconds": 24.29,
       "caption": "The board itself is the lock",
-      "narration": "Two machines are already polling. Both see the ticket in the same second. Worker A claims it first — that's a status transition, and Jira rejects the second one. Worker B reads the rejection, re-reads the ticket, sees it's taken, and moves on. No lock table. No coordination service. The board itself is the lock."
+      "narration": "Two machines are already polling. Both see the ticket in the same second. Worker A claims it first — that's a status transition, and Jira rejects the second one. Worker B reads the rejection, re-reads the ticket, sees it's taken, and moves on. No lock table. No coordination service. The board itself is the lock.",
+      "voiceover": "voiceover/S06.mp3",
+      "audioSeconds": 23.69
     },
     {
       "id": "S07",
       "label": "Live state",
-      "seconds": 9,
+      "seconds": 11.34,
       "caption": "Worker, lease, run log",
-      "narration": "Back in Jira: which worker holds it, the lease counting down, and the run log filling in. The worker writes progress as comments, so the ticket history is the audit trail."
+      "narration": "Back in Jira: which worker holds it, the lease counting down, and the run log filling in. The worker writes progress as comments, so the ticket history is the audit trail.",
+      "voiceover": "voiceover/S07.mp3",
+      "audioSeconds": 10.74
     },
     {
       "id": "S08",
       "label": "Human review gate",
-      "seconds": 8,
+      "seconds": 12.51,
       "caption": "The fleet stops at the pull request",
-      "narration": "Minutes later: branch pushed, pull request open with the change, the tests green, the acceptance criteria ticked. In Review. The fleet stops there — a human merges."
+      "narration": "Minutes later: branch pushed, pull request open with the change, the tests green, the acceptance criteria ticked. In Review. The fleet stops there — a human merges.",
+      "voiceover": "voiceover/S08.mp3",
+      "audioSeconds": 11.91
     },
     {
       "id": "S09",
       "label": "The pull request",
-      "seconds": 8,
+      "seconds": 8.13,
       "caption": "Opened by the fleet, merged by a person",
-      "narration": "The pull request explains itself: what changed, what the tests said, and the boundary — the fleet opens it, a person merges it."
+      "narration": "The pull request explains itself: what changed, what the tests said, and the boundary — the fleet opens it, a person merges it.",
+      "voiceover": "voiceover/S09.mp3",
+      "audioSeconds": 7.73
     },
     {
       "id": "S10",
       "label": "Under the hood",
-      "seconds": 20,
+      "seconds": 16.38,
       "caption": "Two halves, one rule",
-      "narration": "Under the hood: two halves, one rule. The Forge app lives in Atlassian's cloud — the panel and the repair loop. The worker runs on your machine. They never call each other. Both write to Jira, and Jira serialises it."
+      "narration": "Under the hood: two halves, one rule. The Forge app lives in Atlassian's cloud — the panel and the repair loop. The worker runs on your machine. They never call each other. Both write to Jira, and Jira serialises it.",
+      "voiceover": "voiceover/S10.mp3",
+      "audioSeconds": 15.78
     },
     {
       "id": "S11",
       "label": "Claim is a compare-and-swap",
-      "seconds": 20,
+      "seconds": 15.93,
       "caption": "One transition, one winner",
-      "narration": "A claim is a single transition carrying the worker and the lease. That's a compare-and-swap: whoever transitions first wins, and the loser gets a rejected request. The winner re-reads to confirm, then refreshes the lease every five minutes."
+      "narration": "A claim is a single transition carrying the worker and the lease. That's a compare-and-swap: whoever transitions first wins, and the loser gets a rejected request. The winner re-reads to confirm, then refreshes the lease every five minutes.",
+      "voiceover": "voiceover/S11.mp3",
+      "audioSeconds": 15.33
     },
     {
       "id": "S12",
       "label": "Any agent, one contract",
-      "seconds": 20,
+      "seconds": 14.84,
       "caption": "The agent is a plug-in",
-      "narration": "The agent is a plug-in. The worker hands it a ticket as JSON and reads a result back — so Copilot, OpenCode, Claude Code or Codex is a thin translator each. Whatever is installed on that machine is what runs."
+      "narration": "The agent is a plug-in. The worker hands it a ticket as JSON and reads a result back — so Copilot, OpenCode, Claude Code or Codex is a thin translator each. Whatever is installed on that machine is what runs.",
+      "voiceover": "voiceover/S12.mp3",
+      "audioSeconds": 14.24
     },
     {
       "id": "S13",
       "label": "Put your fleet to work",
-      "seconds": 20,
+      "seconds": 21.26,
       "caption": "Install the app. Start a worker.",
-      "narration": "This is the missing middle: cloud parallelism without cloud lock-in. Your hardware, your toolchain, your credentials, your model — and a board that coordinates it. Every idle machine in your office is capacity you already paid for. Install the app. Start a worker. Put your fleet to work."
+      "narration": "This is the missing middle: cloud parallelism without cloud lock-in. Your hardware, your toolchain, your credentials, your model — and a board that coordinates it. Every idle machine in your office is capacity you already paid for. Install the app. Start a worker. Put your fleet to work.",
+      "voiceover": "voiceover/S13.mp3",
+      "audioSeconds": 20.66
     }
   ]
 }

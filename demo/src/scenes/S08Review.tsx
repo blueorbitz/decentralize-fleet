@@ -5,7 +5,7 @@ export default function S08Review() {
   return (
     <Take
       take="panelReview"
-      lead={9.5}
+      lead={5}
       lift={0}
       caption="In Review. The fleet never merges — a human does."
       captionDelay={70}

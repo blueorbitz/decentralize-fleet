@@ -26,15 +26,19 @@ export default function Cursor({
   offsetMs = 0,
   scale = 1,
   tint = '#111827',
+  clampMs,
 }: {
   events: CursorEvent[];
   offsetMs?: number;
   scale?: number;
   tint?: string;
+  /** Hold the pointer at this timestamp, so it freezes with a held frame. */
+  clampMs?: number;
 }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const nowMs = (frame / fps) * 1000 - offsetMs;
+  const rawMs = (frame / fps) * 1000 - offsetMs;
+  const nowMs = clampMs === undefined ? rawMs : Math.min(rawMs, clampMs - offsetMs);
 
   const points = events.filter((e) => (e.kind === 'hover' || e.kind === 'click') && e.x != null);
   if (points.length === 0) return null;

@@ -67,10 +67,30 @@ offset per take live in `src/capture.json`.
 - Captures are git-ignored: they contain the tenant address and bot account.
   `demo/public/` and `demo/.auth/` never get committed.
 
+## Voiceover
+
+One MP3 per beat in `public/voiceover/<BEAT>.mp3` (S01…S13), generated from the
+`narration` text in `beats.json`.
+
+**The voice decides the timing.** After changing any audio, retime the edit:
+
+```bash
+npm run timings     # reads each mp3, sets beats.json seconds + voiceover, prints the deltas
+npm run render
+```
+
+`timings.mjs` adds a short tail to each beat (0.4–0.8s, longer for long beats) so
+a cut never lands on the last syllable. It reads durations by parsing MPEG frame
+headers rather than decoding, because the only ffmpeg here (Playwright's) is
+built with `--disable-everything` and cannot read MP3.
+
+A footage beat can outlast its clip when the narration runs long. Rather than
+cut the voice, the take holds its final frame (`Freeze`) and the pointer stops
+with it. If a still frame is held for more than about two seconds, move the
+take's `lead` earlier so it plays more real footage instead.
+
 ## Still to do
 
-- **Voiceover.** Narration is written per beat in `beats.json` (`narration`) but
-  not recorded. Planned: Kokoro via OpenRouter, one audio file per beat, then set
-  each scene's length from the real audio duration so cuts follow the voice.
 - **Captions** are on-screen text per beat; an `.srt` can be generated from the
   same `beats.json` table.
+- **Music bed** is not added. If one goes in, duck it ~6 dB under the voice.

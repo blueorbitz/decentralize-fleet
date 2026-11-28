@@ -10,6 +10,7 @@
   "private": true,
   "dependencies": {
     "@remotion/cli": "4.0.545",
+    "@remotion/media": "4.0.545",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "remotion": "4.0.545"
@@ -31,6 +32,7 @@
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
+    "timings": "node scripts/timings.mjs",
     "capture:login": "node scripts/capture-login.mjs",
     "capture:dry": "node scripts/capture-jira.mjs --dry --prune",
     "capture:jira": "node scripts/capture-jira.mjs all",

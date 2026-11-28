@@ -57,6 +57,7 @@ export default function Take({
         scale={scale}
         crop={crop}
         lift={lift}
+        clipSeconds={(entry.durationMs ?? 0) / 1000}
         chrome={<Chrome url={entry.url} />}
       />
       <div

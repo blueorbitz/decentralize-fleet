@@ -6,10 +6,10 @@ export default function S05Dispatch() {
   return (
     <Take
       take="dispatch"
-      lead={11}
+      lead={4.5}
       lift={0}
       caption="Dispatch moves it to Ready for Build — and stops there."
-      captionDelay={50}
+      captionDelay={60}
     />
   );
 }
