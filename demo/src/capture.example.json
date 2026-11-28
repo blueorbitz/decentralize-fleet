@@ -1,0 +1,39 @@
+{
+  "takes": {
+    "dispatch": {
+      "src": "footage/dispatch.webm",
+      "events": [],
+      "durationMs": 16000,
+      "url": "acme.atlassian.net/browse/FLT-7",
+      "offsetMs": 0,
+      "trimBeforeSeconds": 0
+    },
+    "panelLive": {
+      "src": "footage/panel-live.webm",
+      "events": [],
+      "durationMs": 19280,
+      "url": "acme.atlassian.net/browse/FLT-7",
+      "offsetMs": 0,
+      "trimBeforeSeconds": 0
+    },
+    "panelReview": {
+      "src": "footage/panel-review.webm",
+      "events": [],
+      "durationMs": 17000,
+      "url": "acme.atlassian.net/browse/FLT-2",
+      "offsetMs": 0,
+      "trimBeforeSeconds": 0
+    },
+    "pr": {
+      "src": "footage/pr.webm",
+      "events": [],
+      "durationMs": 12000,
+      "url": "bitbucket.org/acme/fleet-test/pull-requests/5",
+      "offsetMs": 0,
+      "trimBeforeSeconds": 0
+    }
+  },
+  "prUrl": "https://bitbucket.org/acme/fleet-test/pull-requests/5",
+  "offsetMs": {},
+  "trim": {}
+}

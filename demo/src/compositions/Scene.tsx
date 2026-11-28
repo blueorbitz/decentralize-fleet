@@ -9,7 +9,7 @@ import S05Dispatch from '../scenes/S05Dispatch';
 import S06Race from '../scenes/S06Race';
 import S07LivePanel from '../scenes/S07LivePanel';
 import S08Review from '../scenes/S08Review';
-import S09Settings from '../scenes/S09Settings';
+import S09Pr from '../scenes/S09Pr';
 import S10Topology from '../scenes/S10Topology';
 import S11ClaimCas from '../scenes/S11ClaimCas';
 import S12Agents from '../scenes/S12Agents';
@@ -52,7 +52,7 @@ export const SCENES = {
   S06: S06Race,
   S07: S07LivePanel,
   S08: S08Review,
-  S09: S09Settings,
+  S09: S09Pr,
   S10: S10Topology,
   S11: S11ClaimCas,
   S12: S12Agents,

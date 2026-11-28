@@ -24,6 +24,9 @@
     "typescript": "5.9.3"
   },
   "scripts": {
+    "prepare": "node scripts/ensure-capture.mjs",
+    "predev": "npm run prepare",
+    "prebuild": "npm run prepare",
     "dev": "remotion studio",
     "build": "remotion bundle",
     "upgrade": "remotion upgrade",

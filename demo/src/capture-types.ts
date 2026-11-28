@@ -17,7 +17,10 @@ export type CapturedTake = {
 };
 
 export type CaptureManifest = {
+  /** Every recorded take, keyed by a camelCase name. */
   takes: Record<string, CapturedTake>;
+  /** URL of the pull request the last run opened, for the PR take. */
+  prUrl?: string;
   offsetMs: Record<string, number>;
   trim: Record<string, number>;
 };

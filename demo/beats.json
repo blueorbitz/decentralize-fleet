@@ -34,37 +34,37 @@
     {
       "id": "S05",
       "label": "Dispatch",
-      "seconds": 20,
+      "seconds": 6,
       "caption": "Dispatch to fleet",
       "narration": "A real ticket, Triaged. I open the Fleet panel and dispatch it. Watch the button — it moves the ticket to Ready for Build and stops. The panel never claims on a worker's behalf."
     },
     {
       "id": "S06",
       "label": "One claim, two machines",
-      "seconds": 30,
+      "seconds": 26,
       "caption": "The board itself is the lock",
       "narration": "Two machines are already polling. Both see the ticket in the same second. Worker A claims it first — that's a status transition, and Jira rejects the second one. Worker B reads the rejection, re-reads the ticket, sees it's taken, and moves on. No lock table. No coordination service. The board itself is the lock."
     },
     {
       "id": "S07",
       "label": "Live state",
-      "seconds": 20,
+      "seconds": 9,
       "caption": "Worker, lease, run log",
       "narration": "Back in Jira: which worker holds it, the lease counting down, and the run log filling in. The worker writes progress as comments, so the ticket history is the audit trail."
     },
     {
       "id": "S08",
       "label": "Human review gate",
-      "seconds": 15,
+      "seconds": 8,
       "caption": "The fleet stops at the pull request",
       "narration": "Minutes later: branch pushed, pull request open with the change, the tests green, the acceptance criteria ticked. In Review. The fleet stops there — a human merges."
     },
     {
       "id": "S09",
-      "label": "Settings",
-      "seconds": 25,
-      "caption": "Configuration lives in Jira",
-      "narration": "Configuration belongs in Jira. Each project gets a Fleet settings page: field mappings, lease timings, MCP tokens, and a worker config you paste on any machine. Validate before you save; workers pick it up on restart."
+      "label": "The pull request",
+      "seconds": 8,
+      "caption": "Opened by the fleet, merged by a person",
+      "narration": "The pull request explains itself: what changed, what the tests said, and the boundary — the fleet opens it, a person merges it."
     },
     {
       "id": "S10",

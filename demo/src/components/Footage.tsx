@@ -19,6 +19,8 @@ export default function Footage({
   chrome,
   style,
   children,
+  crop = 0,
+  lift = 0,
 }: {
   src: string;
   events?: CursorEvent[];
@@ -29,13 +31,28 @@ export default function Footage({
   chrome?: ReactNode;
   style?: CSSProperties;
   children?: ReactNode;
+  /**
+   * Pixels of Jira's left sidebar to crop away.
+   *
+   * The captures include Jira's whole chrome, and its account menu shows the
+   * signed-in email address. Cropping is done by shifting the video *and* the
+   * cursor layer together, so click coordinates stay correct.
+   */
+  crop?: number;
+  /**
+   * Pixels to raise the window, so a caption underneath does not cover the part
+   * of the page the beat is about.
+   */
+  lift?: number;
 }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const localFrame = frame - Math.round(trimBeforeSeconds * fps);
+  void frame;
+  void fps;
+  const width = 1600 - crop;
 
   return (
-    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center' }}>
+    <AbsoluteFill style={{ alignItems: 'center', justifyContent: 'center', paddingBottom: lift * 2 }}>
       <div
         style={{
           position: 'relative',
@@ -50,21 +67,25 @@ export default function Footage({
         <div
           style={{
             position: 'relative',
-            width: 1600,
+            width,
             height: 900,
             lineHeight: 0,
             overflow: 'hidden',
           }}
         >
-          {localFrame >= 0 ? (
+          {/* Video and cursor share one shifted layer so a click still lands on
+              the control it hit. OffthreadVideo seeks via trimBefore itself;
+              gating it on a frame offset would blank the video in the middle of
+              a scene. */}
+          <div style={{ position: 'absolute', left: -crop, top: 0, width: 1600, height: 900 }}>
             <OffthreadVideo
               src={staticFile(src)}
               trimBefore={Math.round(trimBeforeSeconds * fps)}
               style={{ width: 1600, height: 900, display: 'block', objectFit: 'cover' }}
             />
-          ) : null}
-          {showCursor && localFrame >= 0 ? <Cursor events={events} offsetMs={offsetMs} /> : null}
-          {children}
+            {showCursor ? <Cursor events={events} offsetMs={offsetMs} /> : null}
+            {children}
+          </div>
         </div>
       </div>
     </AbsoluteFill>

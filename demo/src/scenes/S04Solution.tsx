@@ -41,7 +41,7 @@ export default function S04Solution() {
                 boxShadow: '0 30px 70px rgba(0,0,0,0.5)',
               }}
             >
-              <Board tickets={BOARD_TICKETS} highlight="FLT-101" width={620} />
+              <Board tickets={BOARD_TICKETS} highlight="FLT-7" width={620} />
             </div>
           </div>
 
