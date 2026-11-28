@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720"
+     font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#0B1424"/>
+      <stop offset="1" stop-color="#070B13"/>
+    </linearGradient>
+
+    <radialGradient id="glow" cx="50%" cy="46%" r="62%">
+      <stop offset="0" stop-color="#1C3358" stop-opacity="0.95"/>
+      <stop offset="55%" stop-color="#122140" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#070B13" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="boardGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#4C9AFF" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#4C9AFF" stop-opacity="0"/>
+    </radialGradient>
+
+    <filter id="boardShadow" x="-40%" y="-40%" width="180%" height="200%">
+      <feDropShadow dx="0" dy="26" stdDeviation="30" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <filter id="greenGlow" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="chipShadow" x="-40%" y="-60%" width="180%" height="240%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- stage -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <ellipse cx="640" cy="332" rx="560" ry="380" fill="url(#glow)"/>
+
+  <!-- kicker -->
+  <text x="640" y="52" text-anchor="middle" fill="#5D6D87" font-size="12.5"
+        letter-spacing="4.5" font-family="'Cascadia Code', Consolas, monospace">ATLASSIAN FORGE &#183; JIRA</text>
+
+  <!-- title -->
+  <text x="640" y="112" text-anchor="middle" fill="#E8EEF9" font-size="62" font-weight="700"
+        letter-spacing="-1.4">Decentralize <tspan fill="#4C9AFF">Fleet</tspan></text>
+  <text x="640" y="150" text-anchor="middle" fill="#93A3BC" font-size="19.5" letter-spacing="0.3">
+    Jira is the queue. Your machines are the fleet.
+  </text>
+
+  <!-- board halo -->
+  <ellipse cx="640" cy="444" rx="330" ry="210" fill="url(#boardGlow)"/>
+
+  <!-- ============ connection lines (behind the board) ============ -->
+  <g stroke-linecap="round">
+    <line x1="640" y1="440" x2="250" y2="340" stroke="#36B37E" stroke-width="2.5" opacity="0.95" filter="url(#greenGlow)"/>
+    <line x1="640" y1="440" x2="1030" y2="340" stroke="#2F4160" stroke-width="1.5" opacity="0.7"/>
+    <line x1="640" y1="440" x2="250" y2="560" stroke="#2F4160" stroke-width="1.5" opacity="0.7"/>
+    <line x1="640" y1="440" x2="1030" y2="560" stroke="#2F4160" stroke-width="1.5" opacity="0.7"/>
+  </g>
+
+  <!-- dotted ring -->
+  <ellipse cx="640" cy="440" rx="400" ry="214" fill="none" stroke="#22304A" stroke-width="1.4"
+           stroke-dasharray="6 8" opacity="0.85"/>
+
+  <!-- ============ the Jira board ============ -->
+  <g filter="url(#boardShadow)">
+    <rect x="410" y="290" width="460" height="300" rx="12" fill="#FFFFFF"/>
+  </g>
+
+  <!-- board header -->
+  <text x="432" y="322" fill="#172B4D" font-size="13.5" font-weight="600">FLT &#183; Fleet board</text>
+  <circle cx="828" cy="317" r="4" fill="#36B37E"/>
+  <circle cx="843" cy="317" r="4" fill="#DFE1E6"/>
+  <circle cx="858" cy="317" r="4" fill="#DFE1E6"/>
+
+  <!-- column backgrounds -->
+  <rect x="424" y="340" width="144" height="238" rx="6" fill="#F7F8F9"/>
+  <rect x="568" y="340" width="144" height="238" rx="6" fill="#F7F8F9"/>
+  <rect x="712" y="340" width="144" height="238" rx="6" fill="#F7F8F9"/>
+
+  <!-- column headers -->
+  <text x="432" y="362" fill="#5E6C84" font-size="9" font-weight="700" letter-spacing="1.2">READY FOR BUILD</text>
+  <text x="576" y="362" fill="#7F5F01" font-size="9" font-weight="700" letter-spacing="1.2">IN BUILD</text>
+  <text x="720" y="362" fill="#0747A6" font-size="9" font-weight="700" letter-spacing="1.2">IN REVIEW</text>
+
+  <!-- READY FOR BUILD: three tickets -->
+  <g>
+    <rect x="430" y="372" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6"/>
+    <rect x="438" y="381" width="26" height="6" rx="3" fill="#DEEBFF"/>
+    <rect x="438" y="394" width="98" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="438" y="404" width="68" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+  <g>
+    <rect x="430" y="426" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6"/>
+    <rect x="438" y="435" width="26" height="6" rx="3" fill="#DEEBFF"/>
+    <rect x="438" y="448" width="86" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="438" y="458" width="52" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+  <g>
+    <rect x="430" y="480" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6"/>
+    <rect x="438" y="489" width="26" height="6" rx="3" fill="#DEEBFF"/>
+    <rect x="438" y="502" width="92" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="438" y="512" width="60" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+
+  <!-- IN BUILD: the claimed ticket -->
+  <g>
+    <rect x="574" y="372" width="132" height="84" rx="4" fill="#FFFFFF" stroke="#FFAB00"/>
+    <rect x="574" y="372" width="3" height="84" rx="1.5" fill="#FFAB00"/>
+    <rect x="584" y="381" width="30" height="6" rx="3" fill="#FFFAE6"/>
+    <rect x="584" y="395" width="98" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="584" y="405" width="72" height="5" rx="2.5" fill="#EBECF0"/>
+    <circle cx="588" cy="426" r="3.5" fill="#36B37E"/>
+    <text x="597" y="429" fill="#006644" font-size="8.5" font-weight="600"
+          font-family="'Cascadia Code', Consolas, monospace">worker-04</text>
+    <text x="584" y="446" fill="#7A869A" font-size="7.5"
+          font-family="'Cascadia Code', Consolas, monospace">lease 13:12 left</text>
+  </g>
+  <g>
+    <rect x="574" y="464" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6" opacity="0.7"/>
+    <rect x="582" y="473" width="26" height="6" rx="3" fill="#FFFAE6"/>
+    <rect x="582" y="486" width="80" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="582" y="496" width="54" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+
+  <!-- IN REVIEW: two tickets -->
+  <g>
+    <rect x="718" y="372" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6"/>
+    <rect x="726" y="381" width="26" height="6" rx="3" fill="#E3FCEF"/>
+    <rect x="726" y="394" width="92" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="726" y="404" width="66" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+  <g>
+    <rect x="718" y="426" width="132" height="46" rx="4" fill="#FFFFFF" stroke="#DFE1E6"/>
+    <rect x="726" y="435" width="26" height="6" rx="3" fill="#E3FCEF"/>
+    <rect x="726" y="448" width="84" height="5" rx="2.5" fill="#EBECF0"/>
+    <rect x="726" y="458" width="48" height="5" rx="2.5" fill="#EBECF0"/>
+  </g>
+
+  <!-- ============ worker chips ============ -->
+  <!-- winner status text -->
+  <text x="250" y="300" text-anchor="middle" fill="#36B37E" font-size="10.5" font-weight="600"
+        letter-spacing="0.8" font-family="'Cascadia Code', Consolas, monospace">verify ok</text>
+  <text x="1030" y="300" text-anchor="middle" fill="#5D6D87" font-size="10.5"
+        letter-spacing="0.4" font-family="'Cascadia Code', Consolas, monospace">lost the claim race</text>
+
+  <!-- top-left: winner -->
+  <g filter="url(#chipShadow)">
+    <rect x="175" y="312" width="150" height="56" rx="9" fill="#17233A" stroke="#36B37E" stroke-width="1.5"/>
+  </g>
+  <circle cx="195" cy="340" r="5" fill="#36B37E" filter="url(#greenGlow)"/>
+  <text x="209" y="336" fill="#E8EEF9" font-size="12.5"
+        font-family="'Cascadia Code', Consolas, monospace">worker-04</text>
+  <text x="209" y="352" fill="#93A3BC" font-size="10.5">laptop</text>
+
+  <!-- top-right: loser -->
+  <g filter="url(#chipShadow)">
+    <rect x="955" y="312" width="150" height="56" rx="9" fill="#17233A" stroke="#2F4160" stroke-width="1.5"/>
+  </g>
+  <circle cx="975" cy="340" r="5" fill="#5D6D87"/>
+  <text x="989" y="336" fill="#C5D0E2" font-size="12.5"
+        font-family="'Cascadia Code', Consolas, monospace">worker-11</text>
+  <text x="989" y="352" fill="#93A3BC" font-size="10.5">build box</text>
+
+  <!-- bottom-left -->
+  <g filter="url(#chipShadow)">
+    <rect x="175" y="532" width="150" height="56" rx="9" fill="#17233A" stroke="#2F4160" stroke-width="1.5"/>
+  </g>
+  <circle cx="195" cy="560" r="5" fill="#36B37E"/>
+  <text x="209" y="556" fill="#E8EEF9" font-size="12.5"
+        font-family="'Cascadia Code', Consolas, monospace">worker-02</text>
+  <text x="209" y="572" fill="#93A3BC" font-size="10.5">GPU desktop</text>
+
+  <!-- bottom-right -->
+  <g filter="url(#chipShadow)">
+    <rect x="955" y="532" width="150" height="56" rx="9" fill="#17233A" stroke="#2F4160" stroke-width="1.5"/>
+  </g>
+  <circle cx="975" cy="560" r="5" fill="#36B37E"/>
+  <text x="989" y="556" fill="#E8EEF9" font-size="12.5"
+        font-family="'Cascadia Code', Consolas, monospace">worker-07</text>
+  <text x="989" y="572" fill="#93A3BC" font-size="10.5">spare laptop</text>
+
+  <!-- bottom line -->
+  <text x="640" y="700" text-anchor="middle" fill="#93A3BC" font-size="15" letter-spacing="0.6"
+        font-family="'Cascadia Code', Consolas, monospace">
+    Install the app. Start a worker. <tspan fill="#4C9AFF" font-weight="600">Put your fleet to work.</tspan>
+  </text>
+</svg>
