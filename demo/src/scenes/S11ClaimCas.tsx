@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import Backdrop from '../components/Backdrop';
 import Caption from '../components/Caption';
 import Stage from '../components/Stage';
@@ -9,12 +9,18 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 // The claim as a compare-and-swap, shown as the actual request pair. The loser
 // is rejected because the source status has already moved.
+//
+// Beat length comes from the voiceover; the request lands first, then the two
+// outcomes, then the timing numbers the narration ends on.
 export default function S11ClaimCas() {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const p = (fraction: number) => Math.round(durationInFrames * fraction);
+
   const reqIn = useAppear(6, 16, 18);
-  const winIn = interpolate(frame, [58, 74], [0, 1], clamp);
-  const loseIn = interpolate(frame, [92, 108], [0, 1], clamp);
-  const leaseIn = interpolate(frame, [130, 148], [0, 1], clamp);
+  const winIn = interpolate(frame, [p(0.14), p(0.24)], [0, 1], clamp);
+  const loseIn = interpolate(frame, [p(0.26), p(0.36)], [0, 1], clamp);
+  const leaseIn = interpolate(frame, [p(0.5), p(0.62)], [0, 1], clamp);
 
   return (
     <AbsoluteFill>
@@ -59,7 +65,7 @@ export default function S11ClaimCas() {
         </div>
 
         <div style={{ marginTop: 20 }}>
-          <Caption delay={112} text="Whoever transitions first wins. That is the whole lock." />
+          <Caption delay={p(0.66)} text="Whoever transitions first wins. That is the whole lock." />
         </div>
       </AbsoluteFill>
     </AbsoluteFill>

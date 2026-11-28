@@ -1,282 +1,329 @@
-# Testing instructions for judges
+# Trying Decentralize Fleet
 
-There are three levels. **Levels 1 and 2 need no Atlassian account, no Forge login and no network** — start there, because they prove the whole protocol. Level 3 is the full Jira tenant install.
+This guide takes you from a fresh Jira site to watching an AI agent pick up a ticket, write code in your own repository, and open a pull request — without you touching a terminal during the build.
 
-Everything below runs from the repo root unless a step says otherwise.
+About 20 minutes of setup. Nothing here requires you to build or deploy anything: the app is already published, and the worker is plain Node with no dependencies.
 
-Prerequisites: **Node 20+** and **git**. Level 3 additionally needs the **Forge CLI** (`npm i -g @forge/cli`) and a **Jira Cloud site where you can administer Jira**.
+## What you'll end up with
 
-> **No credentials are shipped with this project.** Every token below is one you create for your own account — this is deliberate, since the design's whole trust model is least-privilege, per-project credentials. Nothing in the repo contains a secret.
+- A Jira project with a **Fleet** panel on every ticket
+- A small git repository that the fleet builds against
+- A worker running on your machine, polling Jira for work
+- One ticket that goes from **Ready for Build** → **In Review** on its own, with a pull request attached
 
-## Level 1 — the worker, offline (~15 seconds)
+## What you need
 
-```sh
-cd fleet-worker
-npm test          # expect: pass 77, fail 0
-npm run demo      # the whole loop: happy path, crash/reaper, retry budget
-```
-
-`npm test` runs the real worker against an in-process Jira mock with real transition-precondition semantics and a throwaway git repo — claim races, the retry path and the reaper are genuinely exercised, not stubbed.
-
-`npm run demo` prints the board before and after each of three phases:
-
-| Phase | What you should see |
+| What | Why |
 |---|---|
-| 1 — happy path | `FLT-101` goes `Ready for Build` → `In Review`, with a branch and a PR |
-| 2 — crash | a worker claims, dies; its lease goes stale; the reaper requeues it and comments |
-| 3 — failure | the harness fails; the retry budget (1/1) is spent and it requeues; a second failure moves it to `Failed` |
+| **A Jira Cloud site** | You need *Administer Jira* to create fields and edit workflows |
+| **A Jira project** | Any company-managed project. The examples use the key `FLT` |
+| **A Bitbucket Cloud account** | For the repository the agent will push to. GitHub works too, but then pull requests are recorded on the ticket instead of being opened for you |
+| **A computer to run the worker** | Node 20+ and git. A spare laptop is fine — that is the point of the project |
+| **A coding agent CLI** | Command Code or OpenCode. See step 6 for the full list |
 
-If those three phases make sense, you understand the protocol.
+You also need two Jira API tokens. They are not interchangeable, and using the wrong one is the most common way this setup fails:
 
-## Level 2 — the Forge app, offline (~5 seconds)
-
-```sh
-cd forge-app
-npm install       # first time only
-npm test          # expect: pass 153, fail 0
-```
-
-This runs the real client, reaper, MCP server, settings service and resolver functions against an in-process Jira mock, with the settings store swapped for an in-memory double. No Forge login, no network.
-
-Four of these tests exist purely as **drift guards**, and they are the ones worth looking at: `contract.test.js` fails if the app and the worker disagree on a status, transition, field or lease timing; `manifest.test.js` fails if the manifest wires a handler that isn't exported; `panel-styles.test.js` fails if a component renders a class the stylesheet doesn't style; `packaging.test.js` fails if the known npm packaging traps come back.
-
-To see the panel UI actually build:
-
-```sh
-cd forge-app
-npm run build:ui
-```
-
-**Checkpoint:** `src/static/issue-panel/dist/index.html` exists, and the compiled CSS in `dist/assets/` contains `fleet-root` (a build can succeed while shipping no styles, which is the failure you can't see by eye).
-
-## Level 2b — a real claim race, through the real CLI (~2 minutes, no Jira account)
-
-This is the demo's core claim, reproducible offline. You need two terminals.
-
-**Terminal 1** — start an offline fleet:
-
-```sh
-cd fleet-worker
-npm run mock:fleet
-```
-
-It prints a mock Jira URL, a scratch git repo path, and a ready-to-paste `node bin/fleet-worker.js run ...` command. It reprints the four-ticket board whenever anything changes.
-
-**Terminal 2** — paste that command. It looks like this (the URL and path come from Terminal 1 — use those, not these):
-
-```sh
-node bin/fleet-worker.js run --once --verbose \
-  --jira <MOCK_JIRA_URL> --email bot@demo --token demo --project FLT \
-  --repo "<MOCK_REPO>" --git-host local --worker-id worker-cli \
-  --adapter script --field-worker "Fleet Worker" --field-lease "Fleet Lease" \
-  --field-branch "Fleet Branch" --field-pr "Fleet PR" --field-retry "Fleet Retry"
-```
-
-Run it again with `--worker-id worker-cli-2` while the first still holds a ticket, and you get the race: one worker logs `verify ok — fleet_worker=…`, the other logs `lost the claim race (now "In Build") — moving on`.
-
-A run that ends in `failure (harness produced no file changes) -> requeue (retry 1/1)` is **correct behaviour, not a bug**: the `script` adapter deliberately does no work unless you tell it what to write. To make it finish:
-
-```powershell
-$env:FLEET_SCRIPT_FILE = 'FLEET_OUTPUT.md'
-$env:FLEET_SCRIPT_CONTENT = '# done by the fleet'
-```
-
-(Rebash: `export FLEET_SCRIPT_FILE=... FLEET_SCRIPT_CONTENT=...`.) Clear them when done.
-
-**Checkpoint:** a ticket reaches `In Review` through the real CLI, with a branch and a PR recorded.
-
-## Level 3 — the full install on a Jira tenant (30–45 minutes)
-
-You need **two Jira API tokens**, and confusing them is the single most common failure:
-
-| Token | Whose account | Used for |
+| Token | Create it from | Used for |
 |---|---|---|
-| **Admin token** | an account with *Administer Jira* | creating the custom fields and the project, once |
-| **Fleet Bot token** | a normal user in the project | the worker and the operator scripts |
+| **Admin token** | an account with *Administer Jira* | creating the five custom fields, once |
+| **Fleet Bot token** | a normal user in your project | the worker, every day |
 
-A Jira API token **inherits its permissions from the account that created it**. A fresh token from a non-admin account is still non-admin.
+A Jira API token inherits its permissions from the account that created it — a fresh token made by a non-admin is still a non-admin token. Create both at <https://id.atlassian.com/manage/api-tokens>.
 
-### 3.1 Confirm your account is actually a Jira administrator
+For the Fleet Bot, use a dedicated user with **Browse projects**, **Edit issues** and **Transition issues** on this one project. No admin rights, no other projects.
 
-Do this first — it takes two seconds and saves a confusing failure later:
+---
+
+## Step 1 — Install the app
+
+Install Decentralize Fleet into your Jira site using the installation link on the submission page.
+
+Then open **Settings → Apps → Manage apps** and confirm it is listed. In your project you should now see:
+
+- **Fleet** — an issue panel on every ticket
+- **Fleet** — a page in the project's left navigation
+- **Fleet settings** — under **Project settings → Apps**
+
+The panel and pages will ask you to configure the fleet until step 5. That is expected.
+
+## Step 2 — Create the repository the fleet will work on
+
+The fleet needs a git repository it can clone, branch, and push to. **Use a small test repository, not your real codebase** — the agent will be committing to it.
+
+1. In Bitbucket, create a new **empty** repository, for example `fleet-test`. No README, no `.gitignore`.
+2. This project ships a ready-made scratch repo you can use as the starting point: the `fleet-repo/fleet-test` folder. It is a tiny JavaScript project with a real test suite and no dependencies.
+
+Push that folder to your new repository:
+
+```sh
+cd fleet-repo/fleet-test
+git init
+git add .
+git commit -m "Initial commit"
+git branch -M main
+git remote add origin git@bitbucket.org:YOUR-WORKSPACE/fleet-test.git
+git push -u origin main
+```
+
+Make sure `main` is the **default branch** in Bitbucket. The worker asks the remote which branch to cut from, so `master` or `develop` work too — but the repository must have a default branch.
+
+You do not need to clone it anywhere by hand. The worker clones it into its own scratch workspace the first time it runs.
+
+> **Why a repository with tests?** The worker refuses to open a pull request when the agent produced no file changes, and the pull request body reports the test result. A repository with a working `npm test` makes the whole loop visible.
+
+## Step 3 — Create the five Fleet fields
+
+The fleet tracks its own state in five custom fields. Create each one under **Settings → Issues → Custom fields → Create new field**:
+
+| Field name | Type | What it holds |
+|---|---|---|
+| `Fleet Worker` | **Text field (single line)** | which worker claimed the ticket |
+| `Fleet Lease` | **Date time picker** | its last heartbeat; stale after 15 minutes |
+| `Fleet Branch` | **Text field (single line)** | the branch the agent pushed |
+| `Fleet PR` | **URL field** | the pull request, for a human to merge |
+| `Fleet Retry` | **Number field** | retry budget used (0, then 1) |
+
+Spelling matters — the app and the worker look these fields up by name.
+
+When you create each field, Jira asks which screens it belongs on. **Tick every screen used by your project's tickets.** A field that exists but is not on the screen is invisible to the worker and the panel, and the failure is silent.
+
+Then note down each field's id, which you need in step 5:
+
+```sh
+curl -s -u "YOU@EXAMPLE.COM:$ADMIN_TOKEN" \
+  'https://YOUR-SITE.atlassian.net/rest/api/3/field' |
+  jq -r '.[] | select(.name | startswith("Fleet ")) | "\(.name)\t\(.id)"'
+```
 
 ```powershell
-$pair = "YOU@EXAMPLE.COM:$env:JIRA_ADMIN_TOKEN"
-$auth = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($pair))
+$auth = 'Basic ' + [Convert]::ToBase64String(
+  [Text.Encoding]::UTF8.GetBytes("YOU@EXAMPLE.COM:$env:ADMIN_TOKEN"))
 
-Invoke-RestMethod -Uri 'https://YOUR-SITE.atlassian.net/rest/api/3/mypermissions?permissions=ADMINISTER' `
+Invoke-RestMethod -Uri 'https://YOUR-SITE.atlassian.net/rest/api/3/field' `
   -Headers @{ Authorization = $auth } |
-  Select-Object -ExpandProperty permissions |
-  Select-Object -ExpandProperty ADMINISTER
+  Where-Object { $_.name -like 'Fleet *' } |
+  Select-Object name, id
 ```
 
-`havePermission : True` means you're a Jira admin. If it's `False`, no amount of recreating the token will help — an admin has to grant your account *Administer Jira* under **Settings → System → Global permissions** (or **Administration → Global permissions** on newer sites).
+You will get five lines like `Fleet Worker  customfield_10213`.
 
-### 3.2 Register, build, deploy the Forge app
+> **Shortcut:** this project ships a script that creates all five fields (and a project, if you want one) over the API — `node forge-app/scripts/provision.mjs`, run with `--jira`, `--email`, `--token` and `--project`. It prints the ids at the end. It cannot attach fields to screens or build the workflow, so you still do those here and in step 4.
 
-```sh
-cd forge-app
-npm install
-npm run build:ui
-forge register fleet-app     # writes your real app id into manifest.yml
-forge deploy
-forge install
-```
+## Step 4 — Build the Fleet workflow
 
-Use `forge register`, not `forge create` — the latter scaffolds from a template and would overwrite the manifest.
+The fleet moves tickets through a fixed set of statuses, and **both the app and the worker find transitions by name**. This is the step where a typo turns into a fleet that silently does nothing.
 
-If `forge deploy` prints *"We've detected new scopes or egress URLs"* and exits non-zero, that is **not a failure**: a dynamic webtrigger counts as egress. Run `forge install --upgrade --site YOUR-SITE.atlassian.net --product Jira`.
+Open **Project settings → Issues → Workflows** and edit the workflow your project uses.
 
-### 3.3 Provision the Jira side
+**Add these statuses:**
 
-Uses the **admin** token. Add `--dry-run` first if you want to see the plan without writing.
+`Backlog` · `Triaged` · `Ready for Build` · `In Build` · `In Review` · `Done` · `Failed`
 
-```sh
-node scripts/provision.mjs \
-  --jira https://YOUR-SITE.atlassian.net \
-  --email YOU@EXAMPLE.COM \
-  --token $env:JIRA_ADMIN_TOKEN \
-  --project FLT \
-  --lead-account-id <your-accountId>
-```
+**Add these transitions.** Match the names exactly, including the spaces:
 
-To find your account id: `GET /rest/api/3/myself` → `accountId`.
-
-This creates the five `Fleet *` custom fields and the `FLT` Kanban project (idempotent — existing fields are left alone), then prints the checklist of what it cannot do. It exits `3` if your account lacks *Administer Jira*, which is a permissions problem, not a bug.
-
-### 3.4 The two steps only an admin UI can do
-
-The REST API cannot attach fields to a screen or author a workflow. **Skipping these is the most common reason the fleet silently does nothing.**
-
-**a) Attach the five fields to the project's screen.** Jira settings → Issues → Screens → the screen used by `FLT` → add `Fleet Worker`, `Fleet Lease`, `Fleet Branch`, `Fleet PR`, `Fleet Retry`.
-
-**b) Author the workflow with these exact transition names.** Both the worker and the app resolve transitions *by name*, so a typo is a silent failure.
-
-| From | Transition | To |
+| From | Transition name | To |
 |---|---|---|
-| Backlog | Triage | Triaged |
-| Triaged | Mark Ready | Ready for Build |
-| Ready for Build | Claim | In Build |
-| In Build | Requeue | Ready for Build |
-| In Build | Reject | Failed |
-| In Build | Report PR | In Review |
-| Failed | Requeue | Ready for Build |
-| In Review | Finish | Done |
+| Backlog | `Triage` | Triaged |
+| Triaged | `Mark Ready` | Ready for Build |
+| Ready for Build | `Claim` | In Build |
+| In Build | `Requeue` | Ready for Build |
+| In Build | `Reject` | Failed |
+| In Build | `Report PR` | In Review |
+| Failed | `Requeue` | Ready for Build |
+| In Review | `Finish` | Done |
 
-`Finish` is human-only. `Failed → Requeue` reuses the same transition name, so a failed run can be requeued from the panel.
+Two things to keep in mind:
 
-**Recommended, not required:** add `Fleet Worker` + `Fleet Lease` to the **Claim** transition screen (and `Fleet Branch` + `Fleet PR` to **Report PR**). This makes the claim a single atomic request. Without it, the worker detects Jira's *"cannot be set. It is not on the appropriate screen"* response and falls back to transition-then-update automatically.
+- **`Finish` is for humans only.** It is how a person merges. Nothing automated ever calls it.
+- **`Failed → Requeue` reuses the same transition name** as the requeue above, so a ticket that failed can be sent back by hand from the panel.
 
-### 3.5 Configure the app — Project settings → Fleet settings
+Publish the workflow when you are done.
 
-The app holds **no** Jira API token; it calls Jira through `api.asApp()`, and Forge mints an installation token from the manifest scopes. What it does need is the field ids:
+> **Optional but recommended:** add `Fleet Worker` and `Fleet Lease` to the screen of the **Claim** transition, and `Fleet Branch` and `Fleet PR` to **Report PR**. This makes a claim a single atomic request. Without it the worker still works — it detects Jira's *"cannot be set. It is not on the appropriate screen"* response and does the two steps separately.
 
-1. Open your project → **Project settings → Apps → Fleet settings**.
-2. Enter the project key and the five `customfield_XXXXX` ids the provisioning script printed.
-3. Click **Test connection**, then **Save**.
+## Step 5 — Configure Fleet settings
 
-That page is the source of truth (one record per project in Forge KVS). **A missing field or a missing `Ready for Build → Claim` transition blocks the save** — those are the two silent ways to break the fleet, and they now fail where an admin can see them. Only a project administrator (`ADMINISTER_PROJECTS`) can write; everyone else gets a read-only page, because Forge does not gate `jira:projectSettingsPage` itself.
+Open your project → **Project settings → Apps → Fleet settings**. This page is the fleet's configuration for this project; everything else reads it.
 
-### 3.6 Prove the tenant is wired — do not skip this
+1. Enter the **project key** — for example `FLT`.
+2. Paste the five **field ids** from step 3 into the matching boxes.
+3. Click **Test connection**. It checks that the fields exist, that the statuses exist, and that the `Claim` transition is reachable — and it names whatever is missing.
+4. Click **Save**.
+
+Saving is validated on purpose: a missing field or an unreachable `Claim` transition **blocks the save**. Those are the two failures that would otherwise leave you with a fleet that runs and never claims anything.
+
+Only a project administrator can change this page. Everyone else sees it read-only.
+
+## Step 6 — Start a worker on your machine
+
+A worker is a small process that polls Jira, claims a ticket, runs your coding agent in a git checkout, and opens a pull request. Run it on any machine you already own.
+
+### Get the worker
+
+Clone this project and use the `fleet-worker` folder. It has **no dependencies** — there is nothing to install:
 
 ```sh
-node scripts/verify-setup.mjs \
-  --jira https://YOUR-SITE.atlassian.net \
-  --email bot@EXAMPLE.COM \
-  --token $env:FLEET_JIRA_TOKEN \
-  --project FLT
+git clone <this-repository-url>
+cd decentralize-workload/fleet-worker
 ```
 
-Expect `ok` for the five fields, the project, each status and the `Claim` transition, ending with `Ready.`
+### Pick your coding agent
 
-### 3.7 Run a worker
+The worker contains no AI of its own. It hands a ticket to whichever agent CLI is installed on your machine and reads the result back, so you choose with `FLEET_ADAPTER`:
 
-There is **one `.env` for the whole repo, at its root** — the worker reads it, the Forge app cannot (it runs in Atlassian's cloud). Copy the example and fill in the four that matter:
+| `FLEET_ADAPTER` | Harness it drives | Notes |
+|---|---|---|
+| `cmdc` | **Command Code** — `cmdc -p --output-format json` | the default |
+| `opencode` | **OpenCode** — `opencode run --model <model> --format json --auto` | defaults to the free `opencode/beam-free` model |
+| `copilot` | **GitHub Copilot CLI** — `copilot -p` | reference implementation; check the flags against your installed CLI |
+| `kiro` | **Kiro CLI** | not implemented |
+| `script` | no agent — a deterministic stand-in | for checking your wiring before you involve an agent |
 
-```powershell
-Copy-Item .env.example .env
+Install whichever one you plan to use, and confirm it runs on its own before you point the fleet at it. You can tune the harness from the same config file:
+
+```ini
+CMDC_PERMISSION_MODE=yolo      # the fleet runs in an isolated workspace
+CMDC_MODEL=
+
+OPENCODE_MODEL=opencode/beam-free
+OPENCODE_AGENT=
 ```
+
+### Write the worker's configuration
+
+Create a file named `.env` inside `fleet-worker`:
 
 ```ini
 JIRA_URL=https://YOUR-SITE.atlassian.net
-JIRA_EMAIL=bot@EXAMPLE.COM          # the Fleet Bot, not the admin
+JIRA_EMAIL=bot@YOUR-DOMAIN.com        # the Fleet Bot, not the admin
 JIRA_TOKEN=
-FLEET_REPO=C:\Users\you\.fleet\worker-01\app
+JIRA_PROJECT=FLT
+
+FLEET_REPO=/absolute/path/to/a/workspace
+FLEET_REMOTE=git@bitbucket.org:YOUR-WORKSPACE/fleet-test.git
+FLEET_WORKER_ID=worker-01
+FLEET_ADAPTER=cmdc
 ```
 
-Then, from `fleet-worker`:
+Three things worth knowing:
+
+- **`FLEET_REPO` is a scratch directory, not a clone you manage.** Point it at an empty folder or a path that does not exist yet, and the worker clones `FLEET_REMOTE` into it. Use an absolute path.
+- **You do not type any field ids here.** The worker asks Jira for `Fleet Worker`, `Fleet Lease` and friends by name and resolves the ids itself. If one is missing it tells you which and stops.
+- **`FLEET_REMOTE` must be pushable** by the machine running the worker. That is a separate credential from the Bitbucket API token — see below.
+
+The **Worker .env** action on the Fleet settings page generates this same block for you, prefilled with your project key and timings, if you would rather copy it than type it.
+
+### Let the worker open pull requests (optional)
+
+Without Bitbucket credentials the worker still does everything, but records the pull request on the ticket as a `local://` link instead of opening a real one. To open real pull requests, create a **Repository access token** in Bitbucket (**Repository settings → Access tokens**, with *Pull requests: write* and *Repositories: write*):
+
+```ini
+FLEET_BB_WORKSPACE=YOUR-WORKSPACE
+FLEET_BB_REPO=fleet-test
+FLEET_BB_APP_PASSWORD=<the access token>
+FLEET_BB_AUTH=auto
+```
+
+Two credential shapes exist and they are **not interchangeable** — a repository access token (`ATCT…` / `ATBB…`) is sent as `Bearer`, an app password as `Basic` with a username. Sending one as the other is a silent 401. `auto` detects the shape from the token itself.
+
+Separately, `git push` needs its own credential: either an SSH key for a `git@bitbucket.org:` remote, or a remote URL that carries the token.
+
+### Optional — show this machine on the Fleet page
+
+Copy `FLEET_HEARTBEAT_URL` and a token from the **Worker .env** block. With them set, this machine appears on the project's **Fleet** page even while it is idle. Without them the worker behaves exactly as before.
+
+### Start it
+
+Still in `fleet-worker`:
 
 ```sh
-cd fleet-worker
-./fleet-run.ps1 --check    # resolve .env + field ids + base branch, run nothing
-./fleet-run.ps1            # one poll cycle, then exit
-./fleet-run.ps1 --loop     # daemon (Ctrl-C to stop)
+node bin/fleet-run.js --check    # show what it resolved, claim nothing
+node bin/fleet-run.js            # one poll cycle, then exit
+node bin/fleet-run.js --loop     # keep polling
 ```
 
-`fleet-run.bat` is identical for cmd; both wrap `bin/fleet-run.js`. The wrapper logs which account it runs as, resolves the field ids from Jira, and detects the repo's default branch — so you never type a `customfield_` id.
+On Windows, `.\fleet-run.ps1` does the same thing.
 
-**For a first run, set `FLEET_ADAPTER=script` in `.env`** — it takes the whole protocol through to a PR without any coding agent installed. Switch to `cmdc` or `opencode` afterwards.
+`--check` is the one to run first. It prints which Jira account it authenticated as, the field ids it resolved, the base branch it detected, and the exact command it would run — and claims nothing.
 
-Exit codes are deliberate: `0` ran/passed, `2` missing configuration, `3` Jira rejected the credentials, `4` the Fleet fields don't exist.
+If something is wrong, the exit code tells you what kind of wrong: `2` missing configuration, `3` Jira rejected the credentials, `4` the Fleet fields are not on the site.
 
-### 3.8 The full loop
+## Step 7 — File a ticket and watch it build
 
-1. Create an issue in `FLT`, move it to **Triaged**.
-2. Open the **Fleet** panel → **Dispatch to fleet**. It moves to `Ready for Build` and deliberately stays *unclaimed* — the panel never claims on a worker's behalf.
-3. Start a worker. Within 30–60 seconds it claims the ticket, runs the harness, pushes a branch, opens a PR and moves the ticket to `In Review`. The **Fleet** panel shows the worker, a live lease countdown, the branch, the PR link and the run log.
-
-### 3.9 Optional — test the self-heal
-
-Kill the worker mid-run with **Ctrl-C**. After 15 minutes the scheduled reaper transitions the ticket back to `Ready for Build` and leaves a comment. To see the same transition immediately, use **Abort & requeue** in the panel.
-
-### 3.10 Optional — the MCP endpoint
+Start the worker in loop mode and leave it running:
 
 ```sh
-forge webtrigger create     # choose fleet-mcp
+node bin/fleet-run.js --loop
 ```
 
-Get a token from **Fleet settings → MCP tokens → Generate token**, then:
+Then, in Jira:
 
-```sh
-curl -X POST '<the webtrigger url>' \
-  -H "Authorization: Bearer <your-project-token>" \
-  -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"fleet_status","arguments":{}}}'
+1. **Create a ticket** in your project. Give it a clear summary, and put the requirements in the description under an **Acceptance Criteria** heading as a bulleted list. That list is extracted at claim time and carried into the pull request.
+
+   For the scratch repo, something like:
+
+   > **Summary:** Add a `totalTokens` helper to the usage report
+   >
+   > **Description:** Add `totalTokens(rows)` to `usage.js`. It should sum the `tokens` field across all rows and return `0` for an empty list. Add tests for both.
+   >
+   > **Acceptance Criteria**
+   > - `totalTokens` returns the sum of every row's `tokens` value
+   > - `totalTokens([])` returns `0`
+   > - a test covers both cases
+
+2. **Move it to Triaged**, then to **Ready for Build** — either through the workflow buttons, or by opening the **Fleet** panel and clicking **Dispatch to fleet**.
+
+3. **Watch the panel.** The worker picks it up within a poll cycle (30–60 seconds). Its log shows the claim, the branch, the agent run and the push:
+
+```
+claim -> transition Ready for Build -> In Build  (CAS)
+verify ok — fleet_worker=worker-01
+git reset origin/main @ 4236f23a · branch FLT-12-add-a-totaltokens-helper
+adapter status=ok tests=8/8
+pushed · PR #1 · transition In Build -> In Review
 ```
 
-Expect a JSON-RPC result containing `active`, `queued`, `failed`. `401` means the bearer isn't a token this installation knows; `503` means no project has been configured on the settings page yet.
+4. **The ticket is now In Review**, with a branch and a pull request. Open the pull request, read the diff, and merge it yourself. The fleet never merges.
 
-## What to look at in the panel
+If you run a second worker on another machine, you will see the race resolve itself: one logs `verify ok`, the other logs `lost the claim race (now "In Build") — moving on`.
 
-Open any `FLT` issue and read the **Fleet** panel. It is read-mostly by design: two writes, both of which you could do by hand in Jira.
+### What the panel should show
 
-| Field | Should show |
+| Field | What it means |
 |---|---|
-| Header | `Fleet`, a status pill, the issue key |
-| Worker | the worker id holding the claim, or `—` |
+| Status pill | the ticket's current status |
+| Worker | the worker that holds the claim — or `—` if nobody does |
 | Lease | a live countdown (`13:12 left of 15m`), or `expired` |
-| Branch / Pull request | `FLT-123-some-slug`, and `pull request #42` as a link |
+| Branch | `FLT-12-add-a-totaltokens-helper` once the work is pushed |
+| Pull request | a link once the pull request is open |
 | Retry budget | `0 used`, then `1 used` after a failure |
 | Run log | the tail of the fleet's comments on the ticket |
-| Buttons | **Dispatch to fleet** when Triaged/Ready; **Abort & requeue** when In Build |
+| Buttons | **Dispatch to fleet** when Triaged or Ready; **Abort & requeue** when In Build |
 
-Things that should **not** happen, and are the claims worth testing: the panel never claims a ticket, the panel never runs or merges anything, and the reaper does nothing unless a ticket is already `In Build`.
+Three things should never happen: the panel never claims a ticket on a worker's behalf, the panel never runs or merges anything, and the repair loop never touches a ticket that is not In Build.
 
-## Fastest path if you only have five minutes
+### Try the repair loop
 
-```sh
-cd fleet-worker && npm test && npm run demo
-cd ../forge-app && npm install && npm test
-```
+Kill the worker mid-run with **Ctrl-C**. Its lease goes stale after 15 minutes, and the scheduled repair moves the ticket back to **Ready for Build** with a comment explaining why — no orphaned state left in Jira. To see the same transition immediately, click **Abort & requeue** in the panel.
 
-That exercises the claim-as-CAS race, the lease reaper, the retry budget, the MCP tools and the settings rules with **no account, no network and no Forge login**. Level 3 is the real install, and `TESTING.md` at the repo root is the long-form version of every step above, including a troubleshooting table keyed by symptom.
+## If something does not work
 
-## Known gaps, stated plainly
+| Symptom | Cause |
+|---|---|
+| Worker exits `2` | credentials missing from `.env` — check `JIRA_TOKEN` is set |
+| Worker exits `3` | `JIRA_EMAIL` and `JIRA_TOKEN` are from different accounts |
+| Worker exits `4` | the five `Fleet *` fields do not exist, or are misspelled |
+| Worker claims nothing | no ticket is in **Ready for Build**, or it never got there |
+| Save on Fleet settings is refused | **Test connection** shows the same checks — a field id or the `Claim` transition is wrong |
+| `no transition "Claim" available` | the workflow's transition names do not match step 4 |
+| `cannot be set. It is not on the appropriate screen` | the transition screens are not configured (the optional block in step 4) — this only makes the claim two steps instead of one, and the worker handles it |
+| `harness produced no file changes` | the agent did nothing. If you are on `FLEET_ADAPTER=script`, that is expected — set a real agent |
+| Panel is blank | the field ids on the settings page are display names, not `customfield_*` values |
+| `git push` fails although the pull request opened | `FLEET_BB_*` is the API credential, not the git one. Use an SSH remote or a token-bearing remote URL |
+| Panel shows a stale lease forever | the ticket is not In Build, so the repair loop correctly ignores it |
 
-So you know what you're looking at:
+## Optional — read the board from your coding agent
 
-- **Nothing is deployed.** The Forge app is verified locally; `forge register` / `forge deploy` / `forge install` are your steps (3.2). Level 3 has not been run against a live tenant by us.
-- **The `copilot` adapter is a reference implementation** and `kiro` is a stub — the live, tested harnesses are `cmdc` and `opencode`.
-- **The Rovo modules (`rovo:agent`, `rovo:action`, `rovo:skill`) are not declared in the manifest.** They require Rovo entitlement on the tenant and would make a plain `forge deploy` fail, so they're listed under *What's next*.
-- **The Fleet settings page compiles and lints clean but has not been rendered in a live Jira** — its store, service, resolver, permission gate and view model are all covered offline.
-- **Sandboxing is demo-level**: a dedicated workspace, a filtered environment for the agent, and a human reading every PR. No containers.
+The app exposes an MCP server so a local coding agent can read the fleet without a browser. Generate a token on **Fleet settings → MCP tokens → Generate token**, then open its **.mcp.json** action — it gives you a ready-made config block whose URL is your installation's `fleet-mcp` endpoint. Paste that into your agent's `.mcp.json`.
+
+Tools available: `fleet_status`, `list_claimable_tickets`, `claim_ticket`, `report_run_result`, `reset_claim`, plus the `fleet://status` resource. Workers never use this endpoint — it exists for humans and local agents, and removing it leaves the fleet unchanged.

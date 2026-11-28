@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import Backdrop from '../components/Backdrop';
 import { BigCaption } from '../components/Caption';
 import { colors, font } from '../theme';
@@ -7,10 +7,17 @@ const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 // The gap: two poles pull apart, and the space between them fills with the
 // hardware people already own.
+//
+// Beat length comes from the voiceover, so the beats are fractions of it. The
+// narration names the two extremes first, then the hardware, then lands on the
+// question — and the picture follows that order.
 export default function S03Gap() {
   const frame = useCurrentFrame();
-  const spread = interpolate(frame, [0, 40], [230, 470], clamp);
-  const fill = interpolate(frame, [46, 96], [0, 1], clamp);
+  const { durationInFrames } = useVideoConfig();
+  const p = (fraction: number) => Math.round(durationInFrames * fraction);
+
+  const spread = interpolate(frame, [0, p(0.14)], [230, 470], clamp);
+  const fill = interpolate(frame, [p(0.34), p(0.52)], [0, 1], clamp);
 
   const machines = ['Laptop', 'Build box', 'GPU desktop'];
 
@@ -71,7 +78,7 @@ export default function S03Gap() {
           <BigCaption
             text="Agentic work on hardware you already own."
             sub="Configured, credentialled, and idle most of the day."
-            delay={70}
+            delay={p(0.56)}
             size={54}
           />
         </div>

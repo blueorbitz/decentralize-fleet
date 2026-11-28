@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
 import Backdrop from '../components/Backdrop';
 import { BigCaption } from '../components/Caption';
 import { useAppear } from '../lib/anim';
@@ -7,12 +7,24 @@ import { colors, font } from '../theme';
 const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const;
 
 // Closing: the machines come alive one by one, then the two-step call to action.
+//
+// The narration closes with "Install the app. Start a worker. Put your fleet to
+// work", so the end card is what the voice lands on. Its timings are a fraction
+// of the beat rather than fixed frames, because the beat's length comes from the
+// voiceover and changes whenever the audio is re-recorded.
 const MACHINES = ['laptop', 'build box', 'GPU desktop', 'spare laptop', 'old workstation'];
 
 export default function S13Closing() {
   const frame = useCurrentFrame();
-  const endCard = useAppear(300, 22, 22);
-  const url = interpolate(frame, [340, 366], [0, 1], clamp);
+  const { durationInFrames } = useVideoConfig();
+
+  const lineAt = Math.round(durationInFrames * 0.45);
+  const cardAt = Math.round(durationInFrames * 0.66);
+  const urlAt = Math.round(durationInFrames * 0.78);
+
+  const endCard = useAppear(cardAt, 22, 22);
+  const url = interpolate(frame, [urlAt, urlAt + 26], [0, 1], clamp);
+  const line = interpolate(frame, [lineAt, lineAt + 24], [0, 1], clamp);
 
   return (
     <AbsoluteFill>
@@ -26,11 +38,11 @@ export default function S13Closing() {
           })}
         </div>
 
-        <div style={{ opacity: interpolate(frame, [60, 84], [0, 1], clamp) }}>
+        <div style={{ opacity: line }}>
           <BigCaption
             text="Your machines. Your tools. One board."
             sub="Cloud parallelism, without cloud lock-in."
-            delay={62}
+            delay={lineAt}
             size={62}
           />
         </div>
